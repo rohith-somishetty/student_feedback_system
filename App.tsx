@@ -195,7 +195,7 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <div className="min-h-screen bg-slate-50">
-        {currentUser && <Navbar user={currentUser} onLogout={handleLogout} />}
+        {currentUser && <Navbar user={currentUser} onLogout={handleLogout} issues={issues} />}
 
         <main className={currentUser ? 'container mx-auto px-4 py-8' : ''}>
           <Routes>
@@ -203,7 +203,21 @@ const App: React.FC = () => {
               <Route path="*" element={<LoginPage onLogin={handleLogin} />} />
             ) : (
               <>
-                <Route path="/" element={<Dashboard issues={sortedIssues} user={currentUser} departments={departments} />} />
+                <Route path="/" element={
+                  <Dashboard
+                    issues={sortedIssues}
+                    user={currentUser}
+                    departments={departments}
+                    onApproveIssue={async (id: string) => {
+                      await issuesAPI.approve(id);
+                      setIssues(await issuesAPI.getAll());
+                    }}
+                    onRejectIssue={async (id: string, reason?: string) => {
+                      await issuesAPI.reject(id, reason);
+                      setIssues(await issuesAPI.getAll());
+                    }}
+                  />
+                } />
                 <Route path="/report" element={<IssueForm user={currentUser} departments={departments} onAddIssue={addIssue} />} />
                 <Route path="/issues" element={<IssueList issues={sortedIssues} departments={departments} />} />
                 <Route path="/profile" element={<Profile user={currentUser} onUpdateProfile={updateProfile} />} />

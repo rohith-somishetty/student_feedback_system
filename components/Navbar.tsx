@@ -1,15 +1,17 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { User, UserRole } from '../types';
+import { User, UserRole, Issue, IssueStatus } from '../types';
 
 interface NavbarProps {
   user: User;
   onLogout: () => void;
+  issues?: Issue[];
 }
 
-const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
+const Navbar: React.FC<NavbarProps> = ({ user, onLogout, issues = [] }) => {
   const location = useLocation();
+  const pendingCount = issues.filter(i => i.status === IssueStatus.PENDING_APPROVAL).length;
 
   const navItems = [
     { label: 'Dashboard', path: '/' },
@@ -29,10 +31,16 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`text-[11px] font-black uppercase tracking-[0.15em] transition-all hover:text-indigo-600 ${location.pathname === item.path ? 'text-indigo-600 border-b-2 border-indigo-600 pb-1' : 'text-slate-400'
+                  className={`text-[11px] font-black uppercase tracking-[0.15em] transition-all hover:text-indigo-600 relative ${location.pathname === item.path ? 'text-indigo-600 border-b-2 border-indigo-600 pb-1' : 'text-slate-400'
                     }`}
                 >
                   {item.label}
+                  {/* Show pending badge on Dashboard for admins */}
+                  {item.path === '/' && user.role === UserRole.ADMIN && pendingCount > 0 && (
+                    <span className="absolute -top-2 -right-5 bg-orange-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                      {pendingCount}
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>

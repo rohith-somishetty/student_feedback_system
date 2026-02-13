@@ -8,6 +8,27 @@ interface IssueListProps {
   departments: Department[];
 }
 
+const statusBadge = (status: string) => {
+  switch (status) {
+    case IssueStatus.PENDING_APPROVAL: return 'bg-orange-100 text-orange-700';
+    case IssueStatus.OPEN: return 'bg-amber-100 text-amber-700';
+    case IssueStatus.IN_REVIEW: return 'bg-blue-100 text-blue-700';
+    case IssueStatus.RESOLVED: return 'bg-emerald-100 text-emerald-700';
+    case IssueStatus.CONTESTED: return 'bg-red-100 text-red-700';
+    case IssueStatus.REOPENED: return 'bg-purple-100 text-purple-700';
+    case IssueStatus.REJECTED: return 'bg-red-200 text-red-800';
+    default: return 'bg-slate-100 text-slate-700';
+  }
+};
+
+const statusLabel = (status: string) => {
+  switch (status) {
+    case IssueStatus.PENDING_APPROVAL: return '⏳ Pending';
+    case IssueStatus.REJECTED: return '✗ Rejected';
+    default: return status.replace('_', ' ');
+  }
+};
+
 const IssueList: React.FC<IssueListProps> = ({ issues, departments }) => {
   const [filter, setFilter] = useState<string>('ALL');
   const [deptFilter, setDeptFilter] = useState<string>('ALL');
@@ -22,12 +43,12 @@ const IssueList: React.FC<IssueListProps> = ({ issues, departments }) => {
     <div className="space-y-6 animate-fadeIn">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Public Issues Feed</h1>
-          <p className="text-sm text-slate-500">Sorted by dynamic priority score.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Issues Feed</h1>
+          <p className="text-sm text-slate-500">Sorted by most recent.</p>
         </div>
-        
+
         <div className="flex flex-wrap gap-2">
-          <select 
+          <select
             className="text-xs font-semibold px-3 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             value={deptFilter}
             onChange={e => setDeptFilter(e.target.value)}
@@ -35,36 +56,36 @@ const IssueList: React.FC<IssueListProps> = ({ issues, departments }) => {
             <option value="ALL">All Departments</option>
             {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
-          
-          <select 
+
+          <select
             className="text-xs font-semibold px-3 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             value={filter}
             onChange={e => setFilter(e.target.value)}
           >
             <option value="ALL">All Status</option>
+            <option value={IssueStatus.PENDING_APPROVAL}>⏳ Pending Approval</option>
             <option value={IssueStatus.OPEN}>Open</option>
+            <option value={IssueStatus.IN_REVIEW}>In Review</option>
             <option value={IssueStatus.RESOLVED}>Resolved</option>
             <option value={IssueStatus.CONTESTED}>Contested</option>
+            <option value={IssueStatus.REJECTED}>Rejected</option>
           </select>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
         {filteredIssues.map(issue => (
-          <Link 
-            key={issue.id} 
+          <Link
+            key={issue.id}
             to={`/issues/${issue.id}`}
             className="block group"
           >
-            <div className="bg-white border border-slate-200 rounded-xl p-6 hover:border-indigo-300 shadow-sm transition-all hover:shadow-md flex flex-col md:flex-row md:items-center gap-6">
+            <div className={`bg-white border rounded-xl p-6 hover:border-indigo-300 shadow-sm transition-all hover:shadow-md flex flex-col md:flex-row md:items-center gap-6 ${issue.status === IssueStatus.PENDING_APPROVAL ? 'border-orange-200 border-2' : 'border-slate-200'
+              }`}>
               <div className="flex-grow space-y-2">
                 <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                    issue.status === IssueStatus.RESOLVED ? 'bg-emerald-100 text-emerald-700' :
-                    issue.status === IssueStatus.CONTESTED ? 'bg-red-100 text-red-700' :
-                    'bg-slate-100 text-slate-700'
-                  }`}>
-                    {issue.status}
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${statusBadge(issue.status)}`}>
+                    {statusLabel(issue.status)}
                   </span>
                   <span className="text-xs text-slate-400">#{issue.id}</span>
                 </div>
@@ -101,7 +122,7 @@ const IssueList: React.FC<IssueListProps> = ({ issues, departments }) => {
         {filteredIssues.length === 0 && (
           <div className="text-center py-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
             <div className="text-slate-400 mb-2">No issues matching your filters.</div>
-            <button onClick={() => {setFilter('ALL'); setDeptFilter('ALL');}} className="text-indigo-600 font-bold hover:underline">Clear all filters</button>
+            <button onClick={() => { setFilter('ALL'); setDeptFilter('ALL'); }} className="text-indigo-600 font-bold hover:underline">Clear all filters</button>
           </div>
         )}
       </div>
