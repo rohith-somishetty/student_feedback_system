@@ -1,4 +1,4 @@
-import multer from 'multer';
+const multer = require('multer');
 
 // Use memory storage so we can pipe the buffer to Supabase Storage
 const storage = multer.memoryStorage();
@@ -13,10 +13,12 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-export const upload = multer({
+const upload = multer({
     storage,
     fileFilter,
     limits: {
         fileSize: 5 * 1024 * 1024 // 5MB limit
     }
 });
+
+module.exports = { upload };

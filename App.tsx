@@ -11,6 +11,8 @@ import IssueList from './components/IssueList';
 import IssueDetail from './components/IssueDetail';
 import CredibilityStats from './components/CredibilityStats';
 import Profile from './components/Profile';
+import Archive from './components/Archive';
+import Login from './components/Login';
 
 const App: React.FC = () => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -194,13 +196,13 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-slate-50 transition-colors duration-500">
         {currentUser && <Navbar user={currentUser} onLogout={handleLogout} issues={issues} />}
 
-        <main className={currentUser ? 'container mx-auto px-4 py-8' : ''}>
+        <main className={currentUser ? 'container mx-auto px-6 pt-24 pb-12' : ''}>
           <Routes>
             {!currentUser ? (
-              <Route path="*" element={<LoginPage onLogin={handleLogin} />} />
+              <Route path="*" element={<Login onLogin={handleLogin} />} />
             ) : (
               <>
                 <Route path="/" element={
@@ -241,98 +243,18 @@ const App: React.FC = () => {
                   />
                 } />
                 <Route path="/leaderboard" element={<CredibilityStats users={allUsers} />} />
+                <Route path="/archive" element={<Archive issues={issues} departments={departments} />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </>
             )}
           </Routes>
         </main>
 
-        <footer className="bg-white border-t py-6 text-center text-slate-500 text-sm">
-          &copy; {new Date().getFullYear()} Nexus Platform - Student Issue Resolution & Accountability
+        <footer className="bg-white border-t py-8 text-center text-slate-400 text-[10px] uppercase tracking-widest font-black">
+          &copy; {new Date().getFullYear()} Nexus Platform • Student Issue Resolution & Accountability
         </footer>
       </div>
     </HashRouter>
-  );
-};
-
-const LoginPage: React.FC<{ onLogin: (user: User) => void }> = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const data = await authAPI.login(email, password);
-      setAuthToken(data.token);
-      onLogin(data.user);
-    } catch (err) {
-      setError(err.message || 'Invalid credentials');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-black text-indigo-600 mb-2">NEXUS</h1>
-          <p className="text-slate-500 font-medium">Student Issue Resolution Platform</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm font-bold">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-black text-slate-700 mb-2">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="your@email.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-black text-slate-700 mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="••••"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl hover:bg-indigo-700 transition-all shadow-lg disabled:opacity-50"
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-
-          <div className="text-xs text-slate-400 text-center space-y-1">
-            <p className="font-bold">Demo Accounts:</p>
-            <p>Student: alex@student.edu / 000000</p>
-            <p>Admin: sarah@admin.edu / 000000</p>
-            <p>Leadership: leadership@institution.edu / 000000</p>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 };
 

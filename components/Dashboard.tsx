@@ -13,6 +13,11 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ issues, user, departments, onApproveIssue, onRejectIssue }) => {
   const pendingIssues = issues.filter(i => i.status === IssueStatus.PENDING_APPROVAL);
+  const activeIssues = issues.filter(i =>
+    i.status !== IssueStatus.PENDING_APPROVAL &&
+    i.status !== IssueStatus.REJECTED &&
+    i.status !== IssueStatus.RESOLVED
+  );
   const approvedIssues = issues.filter(i => i.status !== IssueStatus.PENDING_APPROVAL && i.status !== IssueStatus.REJECTED);
 
   const stats = {
@@ -24,7 +29,7 @@ const Dashboard: React.FC<DashboardProps> = ({ issues, user, departments, onAppr
     pending: pendingIssues.length,
   };
 
-  const topPriority = approvedIssues.slice(0, 3);
+  const topPriority = activeIssues.slice(0, 3);
 
   // Simple Graph Data
   const statusDist = [
@@ -36,201 +41,224 @@ const Dashboard: React.FC<DashboardProps> = ({ issues, user, departments, onAppr
   ];
 
   const statCards = [
-    { label: 'Open Issues', value: stats.open, color: 'text-amber-600', bg: 'bg-amber-50', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-    { label: 'Resolution Rate', value: `${Math.round((stats.resolved / (stats.total || 1)) * 100)}%`, color: 'text-emerald-600', bg: 'bg-emerald-50', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
-    { label: 'Contested', value: stats.contested, color: 'text-red-600', bg: 'bg-red-50', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+    { label: 'Active Reports', value: activeIssues.length, color: 'text-indigo-600', bg: 'bg-indigo-50/50', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { label: 'Resolution Rate', value: `${Math.round((stats.resolved / (stats.total || 1)) * 100)}%`, color: 'text-emerald-600', bg: 'bg-emerald-50/50', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+    { label: 'Open Issues', value: stats.open, color: 'text-amber-600', bg: 'bg-amber-50/50', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
     ...(user.role === UserRole.ADMIN
-      ? [{ label: 'Pending Approval', value: stats.pending, color: 'text-orange-600', bg: 'bg-orange-50', icon: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }]
-      : [{ label: 'Credibility', value: user.credibility, color: 'text-indigo-600', bg: 'bg-indigo-50', icon: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z' }]
+      ? [{ label: 'Incoming', value: stats.pending, color: 'text-rose-600', bg: 'bg-rose-50/50', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' }]
+      : [{ label: 'Trust Index', value: user.credibility, color: 'text-blue-600', bg: 'bg-blue-50/50', icon: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806' }]
     ),
   ];
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">System Overview</h1>
-          <p className="text-slate-500 font-medium">
+    <div className="min-h-screen pt-32 pb-12 px-4 sm:px-8 max-w-7xl mx-auto font-outfit animate-fadeIn">
+      {/* Header Section */}
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div className="space-y-2">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-brand-primary/5 border border-brand-primary/10 text-brand-primary text-[10px] font-bold uppercase tracking-widest animate-in">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-primary"></span>
+            </span>
+            <span>Live System Status</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-display font-bold text-slate-900 tracking-tight leading-tight">
+            {user.role === UserRole.ADMIN ? (
+              <>
+                Command <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-violet-500">Center</span>
+              </>
+            ) : (
+              <>
+                Student <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-violet-500">Hub</span>
+              </>
+            )}
+          </h1>
+          <p className="text-slate-500 font-medium tracking-wide">
             {user.role === UserRole.ADMIN
-              ? `Administrator: ${user.name} | ${departments.find(d => d.id === user.departmentId)?.name || 'All Departments'}`
-              : `Student Identity: ${user.name} | Credibility: ${user.credibility}`}
+              ? `Monitoring ${departments.find(d => d.id === user.departmentId)?.name || 'All Sectors'}`
+              : `Welcome back, ${user.name}`}
           </p>
         </div>
-        <div className="flex bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm items-center space-x-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Live Updates</span>
-        </div>
+
+        {/* Action Button */}
+        {user.role === UserRole.STUDENT && (
+          <Link
+            to="/report"
+            className="group relative inline-flex items-center justify-center px-8 py-3 font-bold text-white transition-all duration-200 bg-brand-primary font-display rounded-xl hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary hover:shadow-lg hover:shadow-brand-primary/30 active:scale-95"
+          >
+            <span className="mr-2 text-lg">+</span> New Report
+            <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/20"></div>
+          </Link>
+        )}
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {statCards.map(stat => (
-          <div key={stat.label} className={`p-6 rounded-2xl ${stat.bg} border border-white shadow-sm flex items-start justify-between`}>
-            <div>
-              <div className="text-sm font-bold text-slate-500 mb-1 uppercase tracking-tight">{stat.label}</div>
-              <div className={`text-3xl font-black ${stat.color}`}>{stat.value}</div>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        {statCards.map((stat, i) => (
+          <div
+            key={stat.label}
+            className="glass-card rounded-2xl p-6 relative overflow-hidden group"
+            style={{ animationDelay: `${i * 100}ms` }}
+          >
+            <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500 `}>
+              <svg className={`w-24 h-24 ${stat.color}`} fill="currentColor" viewBox="0 0 24 24">
+                <path d={stat.icon} />
+              </svg>
             </div>
-            <svg className={`w-6 h-6 ${stat.color} opacity-40`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={stat.icon} />
-            </svg>
+
+            <div className="relative z-10">
+              <div className="flex justify-between items-start mb-4">
+                <div className={`p-3 rounded-xl bg-slate-50 group-hover:bg-white transition-colors shadow-sm`}>
+                  <svg className={`w-6 h-6 ${stat.color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={stat.icon} />
+                  </svg>
+                </div>
+                {i === 0 && <span className="flex h-3 w-3 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>}
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-3xl font-display font-bold text-slate-900">{stat.value}</h3>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Admin Pending Approval Queue */}
+      {/* Admin Review Queue */}
       {user.role === UserRole.ADMIN && pendingIssues.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-              ⏳ Pending Approvals
-              <span className="ml-2 text-sm font-black text-orange-500 bg-orange-100 px-3 py-1 rounded-full">
-                {pendingIssues.length}
-              </span>
-            </h2>
+        <section className="mb-12 animate-in space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-display font-bold text-slate-800">Review Queue</h2>
+            <span className="px-3 py-1 rounded-full bg-rose-100 text-rose-600 text-xs font-bold border border-rose-200">
+              {pendingIssues.length} Pending
+            </span>
           </div>
 
-          <div className="space-y-3">
+          <div className="grid gap-4">
             {pendingIssues.map(issue => (
-              <div key={issue.id} className="p-5 bg-white rounded-2xl border-2 border-orange-200 shadow-sm hover:shadow-md transition-all">
-                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  <div className="flex-grow">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-orange-100 text-orange-700">
-                        Pending
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-500">
-                        {issue.category}
-                      </span>
-                      <span className="text-xs text-slate-400">#{issue.id}</span>
-                    </div>
-                    <Link to={`/issues/${issue.id}`} className="hover:text-indigo-600 transition-colors">
-                      <h3 className="text-lg font-bold text-slate-900">{issue.title}</h3>
-                    </Link>
-                    <p className="text-sm text-slate-500 line-clamp-1 mt-1">{issue.description}</p>
-                    <div className="flex gap-4 mt-2 text-xs text-slate-400 font-medium">
-                      <span>🗓 {new Date(issue.createdAt).toLocaleDateString()}</span>
-                      <span className="bg-slate-50 px-2 py-0.5 rounded">
-                        {departments.find(d => d.id === issue.departmentId)?.name}
-                      </span>
-                      <span>Urgency: {issue.urgency >= 5 ? '🔴 Critical' : issue.urgency >= 3 ? '🟡 High' : '🟢 Low'}</span>
-                    </div>
+              <div key={issue.id} className="glass-card p-6 rounded-2xl border-l-4 border-l-rose-500 hover:border-l-rose-400 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between group">
+                <div className="flex-grow space-y-2">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded bg-slate-100 text-slate-500 uppercase tracking-wide`}>
+                      {issue.category}
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-xs font-medium text-slate-400">
+                      {new Date(issue.createdAt).toLocaleDateString()}
+                    </span>
                   </div>
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-brand-primary transition-colors">
+                    <Link to={`/issues/${issue.id}`}>{issue.title}</Link>
+                  </h3>
+                </div>
 
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => onApproveIssue?.(issue.id)}
-                      className="bg-emerald-600 text-white font-black px-5 py-3 rounded-xl hover:bg-emerald-700 transition-all shadow-md text-sm"
-                    >
-                      ✓ Approve
-                    </button>
-                    <button
-                      onClick={() => onRejectIssue?.(issue.id)}
-                      className="bg-red-500 text-white font-black px-5 py-3 rounded-xl hover:bg-red-600 transition-all shadow-md text-sm"
-                    >
-                      ✗ Reject
-                    </button>
-                    <Link
-                      to={`/issues/${issue.id}`}
-                      className="bg-slate-100 text-slate-700 font-bold px-5 py-3 rounded-xl hover:bg-slate-200 transition-all text-sm"
-                    >
-                      Details →
-                    </Link>
-                  </div>
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                  <button
+                    onClick={() => onApproveIssue?.(issue.id)}
+                    className="flex-1 md:flex-none px-6 py-2.5 bg-brand-primary text-white text-xs font-bold uppercase rounded-xl hover:bg-violet-600 shadow-lg shadow-brand-primary/20 transition-all active:scale-95"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => onRejectIssue?.(issue.id)}
+                    className="flex-1 md:flex-none px-6 py-2.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase rounded-xl hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all active:scale-95"
+                  >
+                    Reject
+                  </button>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Feed */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Top Priority Issues</h2>
-            <Link to="/issues" className="text-sm text-indigo-600 font-bold hover:underline bg-indigo-50 px-4 py-2 rounded-lg transition-all hover:bg-indigo-100">View All Pipeline</Link>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-2xl font-display font-bold text-slate-800">Priority Feed</h2>
+            <Link to="/issues" className="text-sm font-bold text-brand-primary hover:text-violet-600 transition-colors">View All &rarr;</Link>
           </div>
 
           <div className="space-y-4">
-            {topPriority.length > 0 ? topPriority.map(issue => (
+            {topPriority.length > 0 ? topPriority.map((issue, i) => (
               <Link key={issue.id} to={`/issues/${issue.id}`} className="block group">
-                <div className="p-6 bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow-xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-2">
-                    <span className={`px-2 py-1 rounded-bl-xl text-[10px] font-black uppercase tracking-widest ${issue.urgency >= 4 ? 'bg-red-500 text-white' : 'bg-amber-500 text-white'
-                      }`}>
-                      {issue.urgency >= 4 ? 'Urgent' : 'Prioritized'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors pr-10">{issue.title}</h3>
-                  </div>
-                  <p className="text-sm text-slate-500 line-clamp-2 mb-4 font-medium leading-relaxed">{issue.description}</p>
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <div className="flex space-x-6 items-center">
-                      <span className="flex items-center font-bold text-indigo-500">
-                        <span className="mr-1">🔥</span> {Math.round(issue.priorityScore)} Score
-                      </span>
-                      <span className="flex items-center font-bold text-slate-500">
-                        <span className="mr-1">🤝</span> {issue.supportCount} Support
-                      </span>
+                <div
+                  className="glass-card p-6 rounded-2xl hover:border-brand-primary/30 transition-all duration-300 relative overflow-hidden"
+                  style={{ animationDelay: `${i * 150}ms` }}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="space-y-1 pr-12">
+                      <h3 className="text-xl font-bold text-slate-900 group-hover:text-brand-primary transition-colors leading-tight">
+                        {issue.title}
+                      </h3>
+                      <p className="text-sm text-slate-500 line-clamp-2">{issue.description}</p>
                     </div>
-                    <span className="font-medium bg-slate-50 px-3 py-1 rounded-full border border-slate-100 italic">
-                      Updated {new Date(issue.createdAt).toLocaleDateString()}
+                    <div className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl ${issue.urgency >= 4 ? 'bg-rose-50 text-rose-600' : 'bg-indigo-50 text-brand-primary'
+                      } font-display font-bold text-xl`}>
+                      <span>{Math.round(issue.priorityScore)}</span>
+                      <span className="text-[8px] uppercase tracking-wider opacity-70">Score</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs font-medium text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" /></svg>
+                      {issue.supportCount} Supports
                     </span>
+                    <span>•</span>
+                    <span>{departments.find(d => d.id === issue.departmentId)?.name}</span>
                   </div>
                 </div>
               </Link>
             )) : (
-              <div className="py-20 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-white/50">
-                <p className="font-bold">System Clean</p>
-                <p className="text-xs">No active issues detected.</p>
+              <div className="glass-card p-12 text-center rounded-2xl border-dashed border-2 border-slate-300/50">
+                <div className="inline-block p-4 rounded-full bg-slate-50 text-slate-400 mb-4">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                </div>
+                <h3 className="text-lg font-bold text-slate-700">All Clear</h3>
+                <p className="text-slate-400">No high-priority issues at the moment.</p>
               </div>
             )}
           </div>
         </div>
 
-        <div className="space-y-6">
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Analytics</h2>
-
-          <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-8">
-            <div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Issue Distribution</h4>
-              <div className="h-4 w-full flex rounded-full overflow-hidden bg-slate-100">
-                {statusDist.map(s => (
-                  <div
-                    key={s.label}
-                    className={`${s.color} h-full transition-all hover:opacity-80`}
-                    style={{ width: `${(s.count / (stats.total + stats.pending || 1)) * 100}%` }}
-                    title={`${s.label}: ${s.count}`}
-                  />
-                ))}
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {statusDist.map(s => (
-                  <div key={s.label} className="flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${s.color}`}></div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">{s.label} ({s.count})</span>
-                  </div>
-                ))}
-              </div>
+        {/* Sidebar */}
+        <div className="space-y-8">
+          <div className="glass-card p-6 rounded-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-5">
+              <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
             </div>
-
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dept. Efficiency</h4>
+            <h3 className="font-display font-bold text-lg text-slate-800 mb-6 relative z-10">Department Performance</h3>
+            <div className="space-y-5 relative z-10">
               {departments.map(dept => (
                 <div key={dept.id} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-bold text-slate-700">{dept.name}</span>
-                    <span className="font-black text-slate-900">{dept.performanceScore}%</span>
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-slate-600">{dept.name}</span>
+                    <span className={`${dept.performanceScore > 80 ? 'text-emerald-500' : 'text-amber-500'}`}>{dept.performanceScore}%</span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-1000 ${dept.performanceScore > 85 ? 'bg-indigo-500' :
-                          dept.performanceScore > 70 ? 'bg-amber-500' : 'bg-red-500'
+                      className={`h-full rounded-full transition-all duration-1000 ease-out ${dept.performanceScore > 80 ? 'bg-emerald-500' : dept.performanceScore > 60 ? 'bg-amber-400' : 'bg-rose-500'
                         }`}
                       style={{ width: `${dept.performanceScore}%` }}
                     />
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="glass-card p-6 rounded-2xl space-y-4">
+            <h3 className="font-display font-bold text-lg text-slate-800">System Status</h3>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500 font-medium">Resolution Rate</span>
+              <span className="font-bold text-slate-900">{stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0}%</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500 font-medium">Contest Rate</span>
+              <span className="font-bold text-slate-900">{stats.resolved > 0 ? Math.round((stats.contested / stats.resolved) * 100) : 0}%</span>
             </div>
           </div>
         </div>

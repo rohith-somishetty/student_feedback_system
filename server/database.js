@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
+const { createClient } = require('@supabase/supabase-js');
+const dotenv = require('dotenv');
 
 dotenv.config();
 
@@ -14,10 +14,10 @@ if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
 }
 
 // Public client (respects RLS policies, for user-scoped operations)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Admin client (bypasses RLS, for server-side operations like user management)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
@@ -25,7 +25,7 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 });
 
 // Create an authenticated client for a specific user's JWT
-export const createUserClient = (accessToken) => {
+const createUserClient = (accessToken) => {
   return createClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
@@ -35,4 +35,8 @@ export const createUserClient = (accessToken) => {
   });
 };
 
-export default supabase;
+module.exports = {
+  supabase,
+  supabaseAdmin,
+  createUserClient
+};

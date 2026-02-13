@@ -1,7 +1,6 @@
 {
     "name": "nexus-backend",
     "version": "1.0.0",
-    "type": "module",
     "description": "Backend for Nexus Student Issue Resolution Platform",
     "main": "server.js",
     "scripts": {

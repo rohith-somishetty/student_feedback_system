@@ -1,6 +1,6 @@
-import express from 'express';
-import { supabaseAdmin } from '../database.js';
-import { authenticateToken } from '../middleware/auth.js';
+const express = require('express');
+const { supabaseAdmin } = require('../database.js');
+const { authenticateToken } = require('../middleware/auth.js');
 
 const router = express.Router();
 
@@ -15,13 +15,13 @@ router.get('/', authenticateToken, async (req, res) => {
 
         res.json(data.map(u => ({
             id: u.id,
-            name: u.name,
-            email: u.email,
+            name: 'Anonymous',
+            email: 'hidden@privacy.edu',
             role: u.role,
             credibility: u.credibility,
             departmentId: u.department_id,
-            rollNumber: u.roll_number,
-            adminId: u.admin_id,
+            rollNumber: '********',
+            adminId: u.admin_id ? '********' : null,
             createdAt: u.created_at
         })));
     } catch (error) {
@@ -107,4 +107,4 @@ router.get('/:id/supports', authenticateToken, async (req, res) => {
     }
 });
 
-export default router;
+module.exports = router;

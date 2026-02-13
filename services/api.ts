@@ -133,6 +133,24 @@ export const issuesAPI = {
             method: 'POST',
             body: { reason } as any,
         }),
+
+    resolve: (id: string, resolutionSummary: string, evidenceUrl?: string) =>
+        apiRequest(`/issues/${id}/resolve`, {
+            method: 'POST',
+            body: { resolutionSummary, evidenceUrl } as any,
+        }),
+
+    contest: (id: string, reason: string) =>
+        apiRequest(`/issues/${id}/contest`, {
+            method: 'POST',
+            body: { reason } as any,
+        }),
+
+    contestDecision: (id: string, decision: 'ACCEPT' | 'REJECT', explanation?: string, evidenceUrl?: string) =>
+        apiRequest(`/issues/${id}/contest-decision`, {
+            method: 'POST',
+            body: { decision, explanation, evidenceUrl } as any,
+        }),
 };
 
 // Departments API

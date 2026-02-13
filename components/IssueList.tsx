@@ -34,95 +34,131 @@ const IssueList: React.FC<IssueListProps> = ({ issues, departments }) => {
   const [deptFilter, setDeptFilter] = useState<string>('ALL');
 
   const filteredIssues = issues.filter(issue => {
+    // Only show active issues in this list
+    if (issue.status === IssueStatus.RESOLVED || issue.status === IssueStatus.REJECTED) return false;
+
     const statusMatch = filter === 'ALL' || issue.status === filter;
     const deptMatch = deptFilter === 'ALL' || issue.departmentId === deptFilter;
     return statusMatch && deptMatch;
   });
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Issues Feed</h1>
-          <p className="text-sm text-slate-500">Sorted by most recent.</p>
+    <div className="min-h-screen pt-32 pb-12 px-4 sm:px-8 max-w-7xl mx-auto font-outfit animate-fadeIn">
+      {/* Header & Filters */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
+        <div className="space-y-4">
+          <div className="inline-block px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100/50 text-indigo-600 text-xs font-bold uppercase tracking-widest animate-in">
+            Intelligence Feed
+          </div>
+          <h1 className="text-5xl md:text-6xl font-display font-bold text-slate-900 tracking-tight leading-none">
+            Live <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-violet-500">Reports</span>
+          </h1>
+          <p className="text-slate-500 font-medium tracking-wide max-w-xl text-lg">
+            Real-time student feedback protocols and campus infrastructure alerts.
+          </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <select
-            className="text-xs font-semibold px-3 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            value={deptFilter}
-            onChange={e => setDeptFilter(e.target.value)}
-          >
-            <option value="ALL">All Departments</option>
-            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
+        <div className="flex flex-wrap gap-3 p-2 bg-white/40 backdrop-blur-md rounded-2xl border border-white/50 shadow-sm">
+          <div className="relative group">
+            <select
+              className="text-xs font-bold uppercase tracking-wider pl-4 pr-10 py-3 rounded-xl bg-white/50 hover:bg-white border border-transparent hover:border-indigo-100 transition-all cursor-pointer focus:outline-none appearance-none text-slate-600"
+              value={deptFilter}
+              onChange={e => setDeptFilter(e.target.value)}
+            >
+              <option value="ALL">All Sectors</option>
+              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </div>
+          </div>
 
-          <select
-            className="text-xs font-semibold px-3 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-          >
-            <option value="ALL">All Status</option>
-            <option value={IssueStatus.PENDING_APPROVAL}>⏳ Pending Approval</option>
-            <option value={IssueStatus.OPEN}>Open</option>
-            <option value={IssueStatus.IN_REVIEW}>In Review</option>
-            <option value={IssueStatus.RESOLVED}>Resolved</option>
-            <option value={IssueStatus.CONTESTED}>Contested</option>
-            <option value={IssueStatus.REJECTED}>Rejected</option>
-          </select>
+          <div className="relative group">
+            <select
+              className="text-xs font-bold uppercase tracking-wider pl-4 pr-10 py-3 rounded-xl bg-white/50 hover:bg-white border border-transparent hover:border-indigo-100 transition-all cursor-pointer focus:outline-none appearance-none text-slate-600"
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+            >
+              <option value="ALL">All Status</option>
+              <option value={IssueStatus.PENDING_APPROVAL}>Pending</option>
+              <option value={IssueStatus.OPEN}>Active</option>
+              <option value={IssueStatus.IN_REVIEW}>Reviewing</option>
+              <option value={IssueStatus.CONTESTED}>Contested</option>
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {filteredIssues.map(issue => (
+      {/* Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+        {filteredIssues.map((issue, i) => (
           <Link
             key={issue.id}
             to={`/issues/${issue.id}`}
-            className="block group"
+            className="group block"
+            style={{ animationDelay: `${i * 50}ms` }}
           >
-            <div className={`bg-white border rounded-xl p-6 hover:border-indigo-300 shadow-sm transition-all hover:shadow-md flex flex-col md:flex-row md:items-center gap-6 ${issue.status === IssueStatus.PENDING_APPROVAL ? 'border-orange-200 border-2' : 'border-slate-200'
-              }`}>
-              <div className="flex-grow space-y-2">
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${statusBadge(issue.status)}`}>
+            <div className="h-full glass-card p-8 rounded-3xl relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1 group-hover:border-indigo-500/30">
+              {/* Decorative Gradient Blob */}
+              <div className="absolute -right-10 -top-10 w-40 h-40 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 rounded-full blur-3xl group-hover:from-indigo-500/10 group-hover:to-purple-500/10 transition-colors"></div>
+
+              <div className="relative z-10 flex flex-col h-full">
+                <div className="flex justify-between items-start mb-6">
+                  <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-[0.15em] border backdrop-blur-md ${issue.status === IssueStatus.PENDING_APPROVAL ? 'bg-amber-50/80 text-amber-600 border-amber-100' :
+                      issue.status === IssueStatus.OPEN ? 'bg-indigo-50/80 text-brand-primary border-indigo-100' :
+                        issue.status === IssueStatus.IN_REVIEW ? 'bg-violet-50/80 text-violet-600 border-violet-100' :
+                          issue.status === IssueStatus.CONTESTED ? 'bg-rose-50/80 text-rose-600 border-rose-100' :
+                            'bg-slate-50/80 text-slate-500 border-slate-100'
+                    }`}>
                     {statusLabel(issue.status)}
                   </span>
-                  <span className="text-xs text-slate-400">#{issue.id}</span>
+
+                  <div className="text-right">
+                    <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Priority</span>
+                    <span className="text-2xl font-display font-bold text-slate-900 leading-none">{Math.round(issue.priorityScore)}</span>
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+
+                <h3 className="text-xl font-display font-bold text-slate-900 mb-3 leading-tight group-hover:text-brand-primary transition-colors line-clamp-2">
                   {issue.title}
                 </h3>
-                <p className="text-sm text-slate-500 line-clamp-1">
+
+                <p className="text-sm text-slate-500 font-medium line-clamp-2 mb-8 flex-grow">
                   {issue.description}
                 </p>
-                <div className="flex flex-wrap gap-4 pt-2 text-xs text-slate-400 font-medium">
-                  <span className="flex items-center">
-                    <svg className="w-4 h-4 mr-1 text-indigo-400" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" /></svg>
-                    {issue.supportCount} Supports
-                  </span>
-                  <span className="flex items-center">
-                    <svg className="w-4 h-4 mr-1 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
-                    {issue.contestCount} Contests
-                  </span>
-                  <span>🗓 {new Date(issue.createdAt).toLocaleDateString()}</span>
-                  <span className="bg-slate-50 px-2 py-0.5 rounded text-slate-500">
-                    {departments.find(d => d.id === issue.departmentId)?.name}
-                  </span>
-                </div>
-              </div>
 
-              <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-lg min-w-[100px]">
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Priority</div>
-                <div className="text-xl font-black text-slate-800">{Math.round(issue.priorityScore)}</div>
+                <div className="flex items-center justify-between pt-6 border-t border-slate-100/50">
+                  <div className="flex items-center space-x-4">
+                    <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                      {departments.find(d => d.id === issue.departmentId)?.name}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-4 text-xs font-bold text-slate-400">
+                    <span className="flex items-center gap-1 group-hover:text-brand-primary transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" /></svg>
+                      {issue.supportCount}
+                    </span>
+                    <span className="flex items-center gap-1 group-hover:text-rose-500 transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                      {issue.contestCount}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </Link>
         ))}
 
         {filteredIssues.length === 0 && (
-          <div className="text-center py-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-            <div className="text-slate-400 mb-2">No issues matching your filters.</div>
-            <button onClick={() => { setFilter('ALL'); setDeptFilter('ALL'); }} className="text-indigo-600 font-bold hover:underline">Clear all filters</button>
+          <div className="col-span-full py-32 text-center text-slate-300 border-2 border-dashed border-slate-200 rounded-[2.5rem] bg-white/30 backdrop-blur-sm">
+            <div className="text-6xl mb-6 opacity-20 filter grayscale">🛸</div>
+            <p className="font-bold uppercase tracking-widest text-sm mb-2 text-slate-400">No signals detected</p>
+            <button onClick={() => { setFilter('ALL'); setDeptFilter('ALL'); }} className="mt-6 text-xs font-bold uppercase tracking-widest text-brand-primary hover:text-white bg-indigo-50 hover:bg-brand-primary px-8 py-3 rounded-xl transition-all">Clear Filters</button>
           </div>
         )}
       </div>

@@ -18,6 +18,14 @@ interface IssueDetailProps {
   onRejectIssue: (id: string, reason?: string) => void;
 }
 
+const statusLabel = (status: string) => {
+  switch (status) {
+    case IssueStatus.PENDING_APPROVAL: return '⏳ Pending';
+    case IssueStatus.REJECTED: return '✗ Rejected';
+    default: return status.replace('_', ' ');
+  }
+};
+
 const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports, onUpdateIssue, onRecordSupport, onUpdateUser, onApproveIssue, onRejectIssue }) => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -44,7 +52,7 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
       const timelineEvent = createTimelineEvent(
         'SUPPORT',
         user.id,
-        user.name,
+        'Anonymous Student',
         `Endorsed this issue (credibility: ${user.credibility})`
       );
 
@@ -66,7 +74,7 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
     const timelineEvent = createTimelineEvent(
       'STATUS_CHANGE',
       user.id,
-      user.name,
+      'Admin',
       'Marked issue as resolved',
       { oldStatus: issue.status, newStatus: IssueStatus.RESOLVED, evidenceUrl: resolutionUrl }
     );
@@ -92,7 +100,7 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
     const timelineEvent = createTimelineEvent(
       'CONTEST',
       user.id,
-      user.name,
+      'Anonymous Student',
       `Contested resolution: ${contestReason}`,
       { contestCount: newContestCount }
     );
@@ -152,7 +160,7 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
     const comment: Comment = {
       id: Math.random().toString(36).substr(2, 9),
       userId: user.id,
-      userName: user.name,
+      userName: 'Anonymous',
       text: newComment,
       timestamp: new Date().toISOString()
     };
@@ -166,7 +174,7 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
     const proposal: Proposal = {
       id: Math.random().toString(36).substr(2, 9),
       userId: user.id,
-      userName: user.name,
+      userName: 'Anonymous',
       text: newProposal,
       timestamp: new Date().toISOString(),
       votes: 1
@@ -185,267 +193,114 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
   const isOverdue = isIssueOverdue(issue.deadline, issue.status);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-fadeIn pb-20">
-      <button onClick={() => navigate(-1)} className="flex items-center text-slate-400 hover:text-indigo-600 font-bold transition-all group">
-        <svg className="w-5 h-5 mr-1 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-        Pipeline Feed
+    <div className="min-h-screen pt-32 pb-24 px-4 sm:px-8 max-w-6xl mx-auto font-outfit animate-fadeIn">
+      {/* Navigation */}
+      <button
+        onClick={() => navigate(-1)}
+        className="group flex items-center text-slate-400 hover:text-brand-primary font-bold text-xs uppercase tracking-widest mb-8 transition-colors"
+      >
+        <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center mr-3 group-hover:border-brand-primary/30 group-hover:bg-brand-primary/5 transition-all">
+          <svg className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+        </div>
+        Back to Intelligence
       </button>
 
-      <div className="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-xl">
-        <div className="p-10 border-b bg-slate-50/50">
-          <div className="flex justify-between items-start mb-6">
-            <div className="space-y-2">
-              <div className="flex items-center space-x-3">
-                <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${issue.status === IssueStatus.RESOLVED ? 'bg-emerald-500 text-white' :
-                  issue.status === IssueStatus.CONTESTED ? 'bg-red-500 text-white' :
-                    'bg-indigo-600 text-white'
-                  }`}>
-                  {issue.status}
-                </span>
-                <span className="text-xs text-slate-400 font-mono font-bold">Ref: {issue.id}</span>
-              </div>
-              <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">{issue.title}</h1>
+      {/* Hero Section */}
+      <div className="relative glass-card rounded-[2.5rem] p-8 md:p-12 mb-12 overflow-hidden border-t-white/60">
+        {/* Background Gradients */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3 pointer-events-none"></div>
+
+        <div className="relative z-10 flex flex-col md:flex-row gap-12 justify-between">
+          <div className="space-y-6 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm backdrop-blur-md border ${issue.status === IssueStatus.RESOLVED ? 'bg-emerald-500 text-white border-emerald-400' :
+                  issue.status === IssueStatus.CONTESTED ? 'bg-rose-500 text-white border-rose-400' :
+                    'premium-gradient-primary text-white border-white/20'
+                }`}>
+                {statusLabel(issue.status)}
+              </span>
+              <span className="px-3 py-1.5 rounded-lg bg-white/50 border border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                REF: {issue.id.substring(0, 8)}
+              </span>
             </div>
 
-            <div className="text-right flex flex-col items-end">
-              <div className="text-xs text-slate-400 font-black uppercase tracking-widest mb-1">Priority Index</div>
-              <div className="text-5xl font-black text-indigo-600 leading-none">{Math.round(issue.priorityScore)}</div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-slate-900 leading-[1.1] tracking-tight">
+              {issue.title}
+            </h1>
+
+            <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-500">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 border border-slate-100">
+                <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                {issue.category}
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 border border-slate-100">
+                <span className={`w-2 h-2 rounded-full ${issue.urgency >= 4 ? 'bg-rose-500 animate-pulse' : 'bg-amber-400'}`}></span>
+                {Urgency[issue.urgency]} Priority
+              </div>
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${isOverdue ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-white/50 border-slate-100'}`}>
+                <span>🗓 Deadline: {new Date(issue.deadline).toLocaleDateString()}</span>
+                {isOverdue && <span className="text-[10px] bg-rose-100 px-1.5 py-0.5 rounded text-rose-600 uppercase tracking-wide">Overdue</span>}
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 text-xs font-black text-slate-500">
-            <span className="bg-white px-4 py-2 rounded-xl border border-slate-200 uppercase tracking-tighter text-indigo-500">{issue.category}</span>
-            <span className="bg-white px-4 py-2 rounded-xl border border-slate-200 uppercase tracking-tighter">Urgency: {Urgency[issue.urgency]}</span>
-            <span className={`bg-white px-4 py-2 rounded-xl border uppercase tracking-tighter ${isOverdue ? 'border-red-300 text-red-600 bg-red-50' : 'border-slate-200'}`}>
-              Deadline: {new Date(issue.deadline).toLocaleDateString()}
-              {isOverdue && ' ⚠️ OVERDUE'}
-            </span>
-            <span className="bg-white px-4 py-2 rounded-xl border border-slate-200 uppercase tracking-tighter">Supports: {issue.supportCount}</span>
+          <div className="md:text-right flex flex-col items-start md:items-end p-6 rounded-3xl bg-white/40 border border-white/50 shadow-sm backdrop-blur-sm self-start">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Impact Score</span>
+            <div className="text-6xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-br from-slate-900 to-slate-700 leading-none tracking-tight">
+              {Math.round(issue.priorityScore)}
+            </div>
+            <div className="flex gap-4 mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              <span>▲ {issue.supportCount} Supports</span>
+              <span>⚠ {issue.contestCount} Flags</span>
+            </div>
           </div>
         </div>
 
-        <div className="p-10 space-y-12">
-          {/* Main Description */}
-          <section className="space-y-4">
-            <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs flex items-center">
-              <span className="w-8 h-px bg-indigo-600 mr-3"></span>
-              Issue Intelligence
+        <div className="mt-12 p-8 rounded-3xl bg-white/50 border border-white/60 shadow-inner">
+          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            Briefing
+          </h3>
+          <p className="text-lg md:text-xl text-slate-700 font-medium leading-relaxed">
+            {issue.description}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Content Column */}
+        <div className="lg:col-span-2 space-y-8">
+
+          {/* Timeline Section */}
+          <section className="glass-card p-8 rounded-[2rem]">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-8 flex items-center gap-3">
+              <span className="w-8 h-1 rounded-full bg-brand-primary"></span>
+              Operational Timeline
             </h3>
-            <p className="text-slate-600 leading-relaxed text-xl font-medium bg-slate-50 p-6 rounded-2xl border border-slate-100 italic">
-              "{issue.description}"
-            </p>
-          </section>
 
-          {/* Solution Proposals */}
-          <section className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs">Crowdsourced Solutions</h3>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">{issue.proposals?.length || 0} Submitted</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(issue.proposals || []).map(p => (
-                <div key={p.id} className="p-5 bg-indigo-50/30 rounded-2xl border border-indigo-100 flex justify-between items-start">
-                  <div className="space-y-2 pr-4">
-                    <p className="text-sm font-bold text-indigo-900 leading-relaxed">{p.text}</p>
-                    <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">By {p.userName}</div>
+            <div className="relative pl-4 space-y-8 before:absolute before:inset-y-0 before:left-[19px] before:w-0.5 before:bg-slate-100">
+              {(issue.timeline || []).slice().reverse().map((event, i) => (
+                <div key={event.id} className="relative pl-10 animate-in" style={{ animationDelay: `${i * 100}ms` }}>
+                  <div className={`absolute left-0 top-0 w-10 h-10 rounded-xl border-4 border-white shadow-sm flex items-center justify-center text-sm z-10 ${event.type === 'CREATED' ? 'bg-indigo-100 text-indigo-600' :
+                      event.type === 'STATUS_CHANGE' ? 'bg-emerald-100 text-emerald-600' :
+                        event.type === 'SUPPORT' ? 'bg-amber-100 text-amber-600' :
+                          event.type === 'CONTEST' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                    {event.type === 'CREATED' ? '📝' : event.type === 'STATUS_CHANGE' ? '✓' : event.type === 'SUPPORT' ? '▲' : event.type === 'CONTEST' ? '!' : '•'}
                   </div>
-                  <button
-                    onClick={() => voteProposal(p.id)}
-                    className="bg-white px-3 py-2 rounded-xl border border-indigo-200 text-indigo-600 font-black text-xs hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
-                  >
-                    ▲ {p.votes}
-                  </button>
-                </div>
-              ))}
-              {user.role === UserRole.STUDENT && (
-                <form onSubmit={submitProposal} className="p-5 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-                  <input
-                    type="text"
-                    className="w-full bg-transparent border-none focus:outline-none text-sm font-medium mb-3"
-                    placeholder="Propose a specific solution..."
-                    value={newProposal}
-                    onChange={e => setNewProposal(e.target.value)}
-                  />
-                  <button type="submit" className="text-[10px] font-black uppercase text-indigo-600 hover:underline">Submit Proposal</button>
-                </form>
-              )}
-            </div>
-          </section>
 
-          {/* Resolution Area */}
-          {issue.status === IssueStatus.RESOLVED && (
-            <div className="p-8 bg-emerald-50 rounded-3xl border-2 border-emerald-100 space-y-4">
-              <div className="flex items-center text-emerald-700 font-black text-lg">
-                <svg className="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                OFFICIAL RESOLUTION
-              </div>
-              <p className="text-emerald-600 font-medium">The responsible department has filed completion evidence for this issue.</p>
-              <div className="pt-2">
-                <a
-                  href={issue.resolutionEvidenceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="bg-emerald-600 text-white px-6 py-2 rounded-full font-bold text-xs inline-flex items-center hover:bg-emerald-700 shadow-lg shadow-emerald-200"
-                >
-                  View Evidence Bundle
-                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                </a>
-              </div>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-4 pt-4 border-t border-slate-100">
-            {user.role === UserRole.STUDENT && issue.status !== IssueStatus.RESOLVED && (
-              <button
-                onClick={handleSupport}
-                disabled={supportLoading || hasSupported}
-                className={`flex-grow font-black px-10 py-5 rounded-2xl transition-all flex items-center justify-center shadow-lg ${hasSupported
-                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200 transform hover:-translate-y-1'
-                  }`}
-              >
-                {hasSupported ? 'Already Supported' : supportLoading ? 'Processing...' : 'Endorse This Issue'}
-              </button>
-            )}
-
-            {user.role === UserRole.ADMIN && issue.status !== IssueStatus.RESOLVED && (
-              <div className="w-full space-y-4 p-8 bg-slate-900 rounded-3xl text-white shadow-2xl">
-                <h4 className="font-black text-indigo-400 text-xs uppercase tracking-widest">Admin Resolution Hub</h4>
-                <div className="flex gap-4">
-                  <input
-                    type="text"
-                    placeholder="Evidence Link (Cloud Storage)"
-                    className="flex-grow bg-slate-800 px-6 py-4 rounded-2xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white font-medium"
-                    value={resolutionUrl}
-                    onChange={e => setResolutionUrl(e.target.value)}
-                  />
-                  <button
-                    onClick={handleResolve}
-                    className="bg-indigo-500 text-white font-black px-10 py-4 rounded-2xl hover:bg-indigo-600 transition-all shadow-xl shadow-indigo-900/40"
-                  >
-                    Resolve Issue
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {issue.status === IssueStatus.RESOLVED && user.role === UserRole.STUDENT && (
-              <div className="w-full p-8 bg-red-50 rounded-3xl border-2 border-red-100 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-black text-red-800 text-xs uppercase tracking-widest">Contest Integrity</h4>
-                  <span className="text-[10px] font-black text-red-400 bg-white px-3 py-1 rounded-full border border-red-100 uppercase">
-                    Threshold: {issue.contestCount}/{CREDIBILITY_THRESHOLDS.MIN_CONTESTS_REQUIRED} Active Contests
-                  </span>
-                </div>
-                <div className="flex gap-4">
-                  <input
-                    type="text"
-                    placeholder="Briefly state why this resolution is invalid..."
-                    className="flex-grow px-6 py-4 rounded-2xl border border-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-slate-700 bg-white shadow-sm"
-                    value={contestReason}
-                    onChange={e => setContestReason(e.target.value)}
-                  />
-                  <button
-                    onClick={handleContest}
-                    className="bg-red-600 text-white font-black px-10 py-4 rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-200"
-                  >
-                    File Contest
-                  </button>
-                </div>
-                <p className="text-[10px] font-bold text-red-400 italic">Caution: Contesting requires 65+ credibility. Malicious contests result in automatic 15pt penalty.</p>
-              </div>
-            )}
-
-            {/* Admin Approval Section */}
-            {issue.status === IssueStatus.PENDING_APPROVAL && user.role === UserRole.ADMIN && (
-              <div className="w-full p-8 bg-amber-50 rounded-3xl border-2 border-amber-200 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-black text-amber-800 text-xs uppercase tracking-widest">⏳ Pending Approval</h4>
-                  <span className="text-[10px] font-black text-amber-500 bg-white px-3 py-1 rounded-full border border-amber-200 uppercase">
-                    Admin Action Required
-                  </span>
-                </div>
-                <p className="text-sm text-amber-700 font-medium">
-                  This complaint is awaiting your review. Approve it to make it visible to all users, or reject it with a reason.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleApprove}
-                    className="flex-1 bg-emerald-600 text-white font-black px-8 py-4 rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
-                  >
-                    ✓ Approve Complaint
-                  </button>
-                  <button
-                    onClick={handleReject}
-                    className="flex-1 bg-red-600 text-white font-black px-8 py-4 rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-200"
-                  >
-                    ✗ Reject
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Reason for rejection (optional)"
-                  className="w-full px-5 py-3 rounded-xl border-2 border-amber-200 bg-white text-sm font-medium focus:outline-none focus:border-amber-400"
-                />
-              </div>
-            )}
-
-            {/* Pending notice for students */}
-            {issue.status === IssueStatus.PENDING_APPROVAL && user.role === UserRole.STUDENT && (
-              <div className="w-full p-6 bg-amber-50 rounded-3xl border-2 border-amber-100">
-                <p className="text-sm text-amber-700 font-bold text-center">
-                  ⏳ Your complaint has been submitted and is awaiting admin approval.
-                </p>
-              </div>
-            )}
-
-            {/* Rejected notice */}
-            {issue.status === IssueStatus.REJECTED && (
-              <div className="w-full p-6 bg-red-50 rounded-3xl border-2 border-red-100">
-                <p className="text-sm text-red-700 font-bold text-center">
-                  ✗ This complaint was rejected by an admin.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Public Timeline */}
-          <section className="space-y-6 pt-10 border-t border-slate-100">
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs">Public Timeline</h3>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">{issue.timeline?.length || 0} Events</span>
-            </div>
-
-            <div className="space-y-3">
-              {(issue.timeline || []).slice().reverse().map(event => (
-                <div key={event.id} className="flex space-x-4 p-4 bg-slate-50 rounded-xl border border-slate-100 animate-fadeIn">
-                  <div className="shrink-0">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${event.type === 'CREATED' ? 'bg-blue-100 text-blue-600' :
-                      event.type === 'STATUS_CHANGE' ? 'bg-purple-100 text-purple-600' :
-                        event.type === 'SUPPORT' ? 'bg-green-100 text-green-600' :
-                          event.type === 'CONTEST' ? 'bg-red-100 text-red-600' :
-                            'bg-slate-100 text-slate-600'
-                      }`}>
-                      {event.type === 'CREATED' ? '📝' :
-                        event.type === 'STATUS_CHANGE' ? '🔄' :
-                          event.type === 'SUPPORT' ? '👍' :
-                            event.type === 'CONTEST' ? '⚠️' : '📌'}
-                    </div>
-                  </div>
-                  <div className="flex-grow">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-xs font-black text-slate-900">{event.userName}</span>
-                      <span className="text-[10px] font-bold text-slate-400">
-                        {new Date(event.timestamp).toLocaleDateString()} {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <div className="p-5 rounded-2xl bg-white/50 border border-slate-100 hover:border-indigo-100 transition-colors">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{event.userName}</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                        {new Date(event.timestamp).toLocaleDateString()}
                       </span>
                     </div>
-                    <p className="text-sm text-slate-600 font-medium leading-relaxed">{event.description}</p>
+                    <p className="text-sm font-medium text-slate-600">{event.description}</p>
                     {event.metadata?.evidenceUrl && (
-                      <a href={event.metadata.evidenceUrl} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline mt-1 inline-block">
-                        View evidence →
+                      <a href={event.metadata.evidenceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center mt-3 text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline">
+                        Attachment <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                       </a>
                     )}
                   </div>
@@ -454,46 +309,175 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
             </div>
           </section>
 
-          {/* Feedback Section */}
-          <section className="space-y-6 pt-10 border-t border-slate-100">
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs">Community Feedback</h3>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">{issue.comments?.length || 0} Comments</span>
-            </div>
+          {/* Secure Comms / Comments */}
+          <section className="space-y-6">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-3 px-4">
+              <span className="w-8 h-1 rounded-full bg-slate-900"></span>
+              Encrypted Channel
+            </h3>
 
             <div className="space-y-4">
               {(issue.comments || []).map(comment => (
-                <div key={comment.id} className="flex space-x-4 animate-fadeIn">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 shrink-0 text-xs">
+                <div key={comment.id} className="flex gap-4 group animate-in">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-md">
                     {comment.userName.charAt(0)}
                   </div>
-                  <div className="flex-grow bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-black text-slate-900">{comment.userName}</span>
-                      <span className="text-[10px] font-bold text-slate-400">{new Date(comment.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <div className="flex-grow p-5 rounded-2xl rounded-tl-none bg-white border border-slate-100 shadow-sm group-hover:shadow-md transition-all">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{comment.userName}</span>
+                      <span className="text-[10px] text-slate-400 font-bold">{new Date(comment.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <p className="text-sm text-slate-600 font-medium leading-relaxed">{comment.text}</p>
                   </div>
                 </div>
               ))}
+            </div>
 
-              <form onSubmit={submitComment} className="flex items-center space-x-4 mt-6">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center font-black text-indigo-400 shrink-0 text-xs">
+            <form onSubmit={submitComment} className="relative mt-8">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
                   {user.name.charAt(0)}
                 </div>
+              </div>
+              <input
+                type="text"
+                className="w-full glass-card pl-16 pr-14 py-4 rounded-2xl border-transparent focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/10 font-medium text-sm transition-all placeholder:text-slate-400"
+                placeholder="Transmit secure message..."
+                value={newComment}
+                onChange={e => setNewComment(e.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={!newComment.trim()}
+                className="absolute right-2 top-2 bottom-2 aspect-square bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-brand-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14M12 5l7 7-7 7" /></svg>
+              </button>
+            </form>
+          </section>
+        </div>
+
+        {/* Sidebar Actions */}
+        <div className="space-y-6">
+
+          {/* Action Card */}
+          <div className="glass-card p-6 rounded-[2rem] space-y-6 sticky top-32">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Protocol Actions</h3>
+
+            {/* Student Actions */}
+            {user.role === UserRole.STUDENT && issue.status !== IssueStatus.RESOLVED && issue.status !== IssueStatus.PENDING_APPROVAL && (
+              <button
+                onClick={handleSupport}
+                disabled={supportLoading || hasSupported}
+                className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all transform active:scale-95 shadow-lg ${hasSupported
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                  : 'premium-gradient-primary text-white hover:shadow-indigo-500/30 hover:-translate-y-1'
+                  }`}
+              >
+                {hasSupported ? 'Endorsed' : supportLoading ? 'Processing...' : '▲ Endorse Protocol'}
+              </button>
+            )}
+
+            {/* Admin Actions */}
+            {user.role === UserRole.ADMIN && issue.status === IssueStatus.PENDING_APPROVAL && (
+              <div className="space-y-3">
+                <button onClick={handleApprove} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all">
+                  Verify & Approve
+                </button>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Reason for rejection..."
+                    className="w-full mb-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700"
+                    value={rejectReason}
+                    onChange={e => setRejectReason(e.target.value)}
+                  />
+                  <button onClick={handleReject} className="w-full py-3 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">
+                    Reject Protocol
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {user.role === UserRole.ADMIN && issue.status === IssueStatus.OPEN && (
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <input
                   type="text"
-                  className="flex-grow bg-white px-6 py-4 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm transition-all shadow-sm"
-                  placeholder="Write a message to the community..."
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
+                  value={resolutionUrl}
+                  onChange={e => setResolutionUrl(e.target.value)}
+                  placeholder="Evidence URL..."
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs"
                 />
-                <button type="submit" className="bg-indigo-600 text-white p-4 rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                <button onClick={handleResolve} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all">
+                  Mark Resolved
                 </button>
-              </form>
+              </div>
+            )}
+
+            {/* Resolved State */}
+            {issue.status === IssueStatus.RESOLVED && (
+              <div className="text-center p-6 rounded-2xl bg-emerald-50 border border-emerald-100">
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                </div>
+                <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide mb-4">Protocol Resolved</p>
+                <a href={issue.resolutionEvidenceUrl} target="_blank" rel="noreferrer" className="block w-full py-2 bg-emerald-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors">
+                  View Evidence
+                </a>
+
+                {user.role === UserRole.STUDENT && (
+                  <div className="mt-4 pt-4 border-t border-emerald-200/50">
+                    <button
+                      onClick={() => {
+                        if (issue.contestCount >= CREDIBILITY_THRESHOLDS.MIN_CONTESTS_REQUIRED) {
+                          handleContest();
+                        } else {
+                          // Toggle contest input visibility
+                          const reason = prompt("Enter contest reason:");
+                          if (reason) {
+                            setContestReason(reason);
+                            // Hacky state update to trigger standard flow
+                            setTimeout(handleContest, 100);
+                          }
+                        }
+                      }}
+                      className="text-[10px] font-black text-rose-400 hover:text-rose-600 uppercase tracking-widest transition-colors"
+                    >
+                      Flag Discrepancy
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Proposals Section */}
+            <div className="pt-6 border-t border-slate-100">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Proposed Solutions</h4>
+              <div className="space-y-3">
+                {(issue.proposals || []).map(p => (
+                  <div key={p.id} className="p-3 rounded-xl bg-white border border-slate-100 flex justify-between items-center group hover:border-indigo-100 transition-all">
+                    <span className="text-xs font-medium text-slate-700 truncate max-w-[140px]">{p.text}</span>
+                    <button onClick={() => voteProposal(p.id)} className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg hover:bg-brand-primary hover:text-white transition-colors">
+                      ▲ {p.votes}
+                    </button>
+                  </div>
+                ))}
+
+                {user.role === UserRole.STUDENT && (
+                  <form onSubmit={submitProposal} className="mt-3">
+                    <input
+                      type="text"
+                      placeholder="Propose solution..."
+                      className="w-full px-3 py-2 rounded-lg bg-slate-50 border-none focus:ring-2 focus:ring-indigo-100 text-xs font-medium"
+                      value={newProposal}
+                      onChange={e => setNewProposal(e.target.value)}
+                    />
+                  </form>
+                )}
+              </div>
             </div>
-          </section>
+
+          </div>
         </div>
       </div>
     </div>

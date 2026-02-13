@@ -1,7 +1,6 @@
-import { supabaseAdmin } from '../database.js';
+const { supabaseAdmin } = require('../database.js');
 
-// Verify Supabase auth token and attach user to request
-export const authenticateToken = async (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
@@ -44,11 +43,16 @@ export const authenticateToken = async (req, res, next) => {
     }
 };
 
-export const requireRole = (...roles) => {
+const requireRole = (...roles) => {
     return (req, res, next) => {
         if (!req.user || !roles.includes(req.user.role)) {
             return res.status(403).json({ error: 'Insufficient permissions' });
         }
         next();
     };
+};
+
+module.exports = {
+    authenticateToken,
+    requireRole
 };

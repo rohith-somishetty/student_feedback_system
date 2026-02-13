@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS issues (
   urgency INTEGER NOT NULL CHECK (urgency IN (1, 2, 3, 5)),
   deadline TIMESTAMPTZ NOT NULL,
   priority_score REAL DEFAULT 0,
+  priority_index REAL DEFAULT 0,
   evidence_url TEXT,
   resolution_evidence_url TEXT,
   support_count INTEGER DEFAULT 0,
@@ -263,3 +264,71 @@ INSERT INTO departments (id, name, performance_score) VALUES
   ('dept-5', 'Disciplinary Committee', 95),
   ('dept-6', 'General Administration', 85)
 ON CONFLICT (id) DO NOTHING;
+
+-- ============================================
+-- RPC FUNCTIONS
+-- ============================================
+
+-- Atomic function to support an issue and recalculate priority
+CREATE OR REPLACE FUNCTION support_issue(p_issue_id TEXT, p_user_id UUID)
+RETURNS JSON AS $$
+DECLARE
+    v_user_role TEXT;
+    v_issue_status TEXT;
+    v_urgency INTEGER;
+    v_total_credibility NUMERIC;
+    v_new_priority_index NUMERIC;
+    v_user_name TEXT;
+BEGIN
+    -- 1. Check user role
+    SELECT role, name INTO v_user_role, v_user_name FROM profiles WHERE id = p_user_id;
+    IF v_user_role != 'STUDENT' THEN
+        RETURN json_build_object('error', 'Only students can support issues', 'status', 403);
+    END IF;
+
+    -- 2. Check issue status and existence
+    SELECT status, urgency INTO v_issue_status, v_urgency FROM issues WHERE id = p_issue_id;
+    IF NOT FOUND THEN
+        RETURN json_build_object('error', 'Issue not found', 'status', 404);
+    END IF;
+
+    -- Escalated issues: IN_REVIEW, CONTESTED
+    -- Closed issues: RESOLVED, REJECTED
+    IF v_issue_status IN ('RESOLVED', 'REJECTED', 'IN_REVIEW', 'CONTESTED') THEN
+        RETURN json_build_object('error', 'Cannot support a closed or escalated issue', 'status', 400);
+    END IF;
+
+    -- 3. Check for existing support (Atomic check via Unique constraint PRIMARY KEY)
+    IF EXISTS (SELECT 1 FROM supports WHERE user_id = p_user_id AND issue_id = p_issue_id) THEN
+        RETURN json_build_object('error', 'Already supported this issue', 'status', 409);
+    END IF;
+
+    -- 4. Insert support record
+    INSERT INTO supports (user_id, issue_id) VALUES (p_user_id, p_issue_id);
+
+    -- 5. Update support count
+    UPDATE issues SET support_count = support_count + 1 WHERE id = p_issue_id;
+
+    -- 6. Recalculate priority_index for THIS issue
+    -- Formula: SUM(credibility) * urgency / (1 + age_in_days)
+    SELECT SUM(p.credibility) INTO v_total_credibility
+    FROM supports s
+    JOIN profiles p ON s.user_id = p.id
+    WHERE s.issue_id = p_issue_id;
+
+    UPDATE issues 
+    SET priority_index = (v_total_credibility * urgency) / (1 + EXTRACT(EPOCH FROM (NOW() - created_at)) / 86400)
+    WHERE id = p_issue_id
+    RETURNING priority_index INTO v_new_priority_index;
+
+    -- 7. Log timeline event (Anonymous)
+    INSERT INTO timeline_events (issue_id, type, user_id, user_name, description)
+    VALUES (p_issue_id, 'SUPPORT', p_user_id, 'Anonymous Student', 'Supported this issue');
+
+    RETURN json_build_object(
+        'message', 'Issue supported successfully',
+        'support_count', (SELECT support_count FROM issues WHERE id = p_issue_id),
+        'priority_index', v_new_priority_index
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

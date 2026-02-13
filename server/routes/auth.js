@@ -1,5 +1,5 @@
-import express from 'express';
-import { supabase, supabaseAdmin } from '../database.js';
+const express = require('express');
+const { supabase, supabaseAdmin } = require('../database.js');
 
 const router = express.Router();
 
@@ -113,4 +113,4 @@ router.post('/register', async (req, res) => {
     }
 });
 
-export default router;
+module.exports = router;
