@@ -1,0 +1,7 @@
+{
+  "name": "Nexus: Student Issue Resolution",
+  "description": "A collective accountability platform for students and institutions to resolve public issues with credibility-weighted voting and priority-based ranking.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
