@@ -15,7 +15,6 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
     { label: 'Dashboard', path: '/' },
     { label: 'Browse Issues', path: '/issues' },
     { label: 'Leaderboard', path: '/leaderboard' },
-    ...(user.role === UserRole.SUPER_ADMIN ? [{ label: 'Governance', path: '/governance' }] : []),
     { label: 'Settings', path: '/profile' },
   ];
 

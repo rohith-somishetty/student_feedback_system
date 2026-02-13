@@ -1,17 +1,17 @@
 
 export enum UserRole {
   STUDENT = 'STUDENT',
-  ADMIN = 'ADMIN',
-  SUPER_ADMIN = 'SUPER_ADMIN'
+  ADMIN = 'ADMIN'
 }
 
 export enum IssueStatus {
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
   OPEN = 'OPEN',
   IN_REVIEW = 'IN_REVIEW',
   RESOLVED = 'RESOLVED',
   CONTESTED = 'CONTESTED',
   REOPENED = 'REOPENED',
-  ESCALATED = 'ESCALATED'
+  REJECTED = 'REJECTED'
 }
 
 export enum Urgency {
@@ -52,7 +52,7 @@ export interface Proposal {
 
 export interface TimelineEvent {
   id: string;
-  type: 'CREATED' | 'STATUS_CHANGE' | 'EVIDENCE_UPLOAD' | 'CONTEST' | 'ADMIN_UPDATE' | 'SUPPORT';
+  type: 'CREATED' | 'STATUS_CHANGE' | 'EVIDENCE_UPLOAD' | 'CONTEST' | 'ADMIN_UPDATE' | 'SUPPORT' | 'APPROVED' | 'REJECTED';
   userId: string;
   userName: string;
   timestamp: string;

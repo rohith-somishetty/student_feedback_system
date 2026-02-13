@@ -11,7 +11,6 @@ import IssueList from './components/IssueList';
 import IssueDetail from './components/IssueDetail';
 import CredibilityStats from './components/CredibilityStats';
 import Profile from './components/Profile';
-import GovernanceDashboard from './components/GovernanceDashboard';
 
 const App: React.FC = () => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -217,12 +216,17 @@ const App: React.FC = () => {
                     onUpdateIssue={updateIssue}
                     onRecordSupport={recordSupport}
                     onUpdateUser={updateProfile}
+                    onApproveIssue={async (id: string) => {
+                      await issuesAPI.approve(id);
+                      setIssues(await issuesAPI.getAll());
+                    }}
+                    onRejectIssue={async (id: string, reason?: string) => {
+                      await issuesAPI.reject(id, reason);
+                      setIssues(await issuesAPI.getAll());
+                    }}
                   />
                 } />
                 <Route path="/leaderboard" element={<CredibilityStats users={allUsers} />} />
-                {currentUser.role === UserRole.SUPER_ADMIN && (
-                  <Route path="/governance" element={<GovernanceDashboard issues={issues} departments={departments} />} />
-                )}
                 <Route path="*" element={<Navigate to="/" />} />
               </>
             )}
@@ -308,9 +312,9 @@ const LoginPage: React.FC<{ onLogin: (user: User) => void }> = ({ onLogin }) => 
 
           <div className="text-xs text-slate-400 text-center space-y-1">
             <p className="font-bold">Demo Accounts:</p>
-            <p>Student: alex@student.edu / 0000</p>
-            <p>Admin: sarah@admin.edu / 0000</p>
-            <p>Leadership: leadership@institution.edu / 0000</p>
+            <p>Student: alex@student.edu / 000000</p>
+            <p>Admin: sarah@admin.edu / 000000</p>
+            <p>Leadership: leadership@institution.edu / 000000</p>
           </div>
         </form>
       </div>

@@ -8,15 +8,17 @@ import { createTimelineEvent, isIssueOverdue } from '../utils/timeline';
 
 interface IssueDetailProps {
   issues: Issue[];
-  users: User[]; // Need all users to calculate priority properly
+  users: User[];
   user: User;
   supports: Support[];
   onUpdateIssue: (issue: Issue) => void;
   onRecordSupport: (userId: string, issueId: string) => void;
-  onUpdateUser: (userId: string, updates: Partial<User>) => void; // New prop to update credibility
+  onUpdateUser: (userId: string, updates: Partial<User>) => void;
+  onApproveIssue: (id: string) => void;
+  onRejectIssue: (id: string, reason?: string) => void;
 }
 
-const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports, onUpdateIssue, onRecordSupport, onUpdateUser }) => {
+const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports, onUpdateIssue, onRecordSupport, onUpdateUser, onApproveIssue, onRejectIssue }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const issue = issues.find(i => i.id === id);
@@ -27,6 +29,7 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
 
   const [newComment, setNewComment] = useState('');
   const [newProposal, setNewProposal] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
 
   if (!issue) {
     return <div className="text-center py-20 font-bold text-slate-400">Issue Not Found</div>;
@@ -122,26 +125,24 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
     setContestReason('');
   };
 
-  const handleEscalate = () => {
-    if (user.role !== UserRole.SUPER_ADMIN) {
-      return alert('Only Super Admins can escalate issues to higher authority.');
+  // Admin approval handlers
+  const handleApprove = async () => {
+    if (user.role !== UserRole.ADMIN) return;
+    try {
+      await onApproveIssue(issue.id);
+    } catch (err: any) {
+      alert(err.message || 'Failed to approve');
     }
+  };
 
-    const timelineEvent = createTimelineEvent(
-      'STATUS_CHANGE',
-      user.id,
-      user.name,
-      'Escalated issue to higher institutional authority for review',
-      { oldStatus: issue.status, newStatus: IssueStatus.ESCALATED }
-    );
-
-    const updatedIssue: Issue = {
-      ...issue,
-      status: IssueStatus.ESCALATED,
-      timeline: [...issue.timeline, timelineEvent]
-    };
-
-    onUpdateIssue(updatedIssue);
+  const handleReject = async () => {
+    if (user.role !== UserRole.ADMIN) return;
+    try {
+      await onRejectIssue(issue.id, rejectReason || undefined);
+      setRejectReason('');
+    } catch (err: any) {
+      alert(err.message || 'Failed to reject');
+    }
   };
 
 
@@ -356,28 +357,57 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
               </div>
             )}
 
-            {/* Escalation Section for Super Admin */}
-            {(issue.status === IssueStatus.CONTESTED || issue.status === IssueStatus.ESCALATED) && user.role === UserRole.SUPER_ADMIN && (
-              <div className="w-full p-8 bg-purple-50 rounded-3xl border-2 border-purple-100 space-y-4">
+            {/* Admin Approval Section */}
+            {issue.status === IssueStatus.PENDING_APPROVAL && user.role === UserRole.ADMIN && (
+              <div className="w-full p-8 bg-amber-50 rounded-3xl border-2 border-amber-200 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-black text-purple-800 text-xs uppercase tracking-widest">Leadership Escalation</h4>
-                  <span className="text-[10px] font-black text-purple-400 bg-white px-3 py-1 rounded-full border border-purple-100 uppercase">
-                    {issue.status === IssueStatus.ESCALATED ? '✓ Escalated' : 'Action Required'}
+                  <h4 className="font-black text-amber-800 text-xs uppercase tracking-widest">⏳ Pending Approval</h4>
+                  <span className="text-[10px] font-black text-amber-500 bg-white px-3 py-1 rounded-full border border-amber-200 uppercase">
+                    Admin Action Required
                   </span>
                 </div>
-                {issue.status !== IssueStatus.ESCALATED && (
+                <p className="text-sm text-amber-700 font-medium">
+                  This complaint is awaiting your review. Approve it to make it visible to all users, or reject it with a reason.
+                </p>
+                <div className="flex gap-3">
                   <button
-                    onClick={handleEscalate}
-                    className="w-full bg-purple-600 text-white font-black px-10 py-4 rounded-2xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-200"
+                    onClick={handleApprove}
+                    className="flex-1 bg-emerald-600 text-white font-black px-8 py-4 rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
                   >
-                    Escalate to Higher Authority
+                    ✓ Approve Complaint
                   </button>
-                )}
-                {issue.status === IssueStatus.ESCALATED && (
-                  <div className="text-sm text-purple-700 font-medium italic p-4 bg-white rounded-xl border border-purple-200">
-                    This issue has been escalated to the institutional review board for higher-level investigation and resolution.
-                  </div>
-                )}
+                  <button
+                    onClick={handleReject}
+                    className="flex-1 bg-red-600 text-white font-black px-8 py-4 rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-200"
+                  >
+                    ✗ Reject
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Reason for rejection (optional)"
+                  className="w-full px-5 py-3 rounded-xl border-2 border-amber-200 bg-white text-sm font-medium focus:outline-none focus:border-amber-400"
+                />
+              </div>
+            )}
+
+            {/* Pending notice for students */}
+            {issue.status === IssueStatus.PENDING_APPROVAL && user.role === UserRole.STUDENT && (
+              <div className="w-full p-6 bg-amber-50 rounded-3xl border-2 border-amber-100">
+                <p className="text-sm text-amber-700 font-bold text-center">
+                  ⏳ Your complaint has been submitted and is awaiting admin approval.
+                </p>
+              </div>
+            )}
+
+            {/* Rejected notice */}
+            {issue.status === IssueStatus.REJECTED && (
+              <div className="w-full p-6 bg-red-50 rounded-3xl border-2 border-red-100">
+                <p className="text-sm text-red-700 font-bold text-center">
+                  ✗ This complaint was rejected by an admin.
+                </p>
               </div>
             )}
           </div>

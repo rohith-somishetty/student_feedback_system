@@ -6,23 +6,36 @@ import { upload } from '../middleware/upload.js';
 const router = express.Router();
 
 // Get all issues with related data
+// Admins see everything; Students see approved issues + their own pending ones
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        const { data: issues, error } = await supabaseAdmin
-            .from('issues')
-            .select('*')
-            .order('priority_score', { ascending: false });
+        let query = supabaseAdmin.from('issues').select('*');
 
+        // Students only see approved (OPEN+) issues and their own pending/rejected
+        if (req.user.role === 'STUDENT') {
+            query = query.or(`status.neq.PENDING_APPROVAL,status.neq.REJECTED,creator_id.eq.${req.user.id}`);
+        }
+
+        const { data: allIssues, error } = await query.order('created_at', { ascending: false });
         if (error) throw error;
+
+        // For students: filter in JS for clarity
+        let issues = allIssues;
+        if (req.user.role === 'STUDENT') {
+            issues = allIssues.filter(i =>
+                (i.status !== 'PENDING_APPROVAL' && i.status !== 'REJECTED') ||
+                i.creator_id === req.user.id
+            );
+        }
 
         // Batch fetch related data
         const issueIds = issues.map(i => i.id);
 
-        const [timelineRes, commentsRes, proposalsRes] = await Promise.all([
+        const [timelineRes, commentsRes, proposalsRes] = issueIds.length > 0 ? await Promise.all([
             supabaseAdmin.from('timeline_events').select('*').in('issue_id', issueIds).order('created_at', { ascending: true }),
             supabaseAdmin.from('comments').select('*').in('issue_id', issueIds).order('created_at', { ascending: true }),
             supabaseAdmin.from('proposals').select('*').in('issue_id', issueIds).order('votes', { ascending: false })
-        ]);
+        ]) : [{ data: [] }, { data: [] }, { data: [] }];
 
         const timelineByIssue = {};
         const commentsByIssue = {};
@@ -31,13 +44,9 @@ router.get('/', authenticateToken, async (req, res) => {
         (timelineRes.data || []).forEach(t => {
             if (!timelineByIssue[t.issue_id]) timelineByIssue[t.issue_id] = [];
             timelineByIssue[t.issue_id].push({
-                id: t.id,
-                issueId: t.issue_id,
-                type: t.type,
-                userId: t.user_id,
-                userName: t.user_name,
-                description: t.description,
-                metadata: t.metadata,
+                id: t.id, issueId: t.issue_id, type: t.type,
+                userId: t.user_id, userName: t.user_name,
+                description: t.description, metadata: t.metadata,
                 timestamp: t.created_at
             });
         });
@@ -45,23 +54,16 @@ router.get('/', authenticateToken, async (req, res) => {
         (commentsRes.data || []).forEach(c => {
             if (!commentsByIssue[c.issue_id]) commentsByIssue[c.issue_id] = [];
             commentsByIssue[c.issue_id].push({
-                id: c.id,
-                userId: c.user_id,
-                userName: c.user_name,
-                text: c.text,
-                timestamp: c.created_at
+                id: c.id, userId: c.user_id, userName: c.user_name,
+                text: c.text, timestamp: c.created_at
             });
         });
 
         (proposalsRes.data || []).forEach(p => {
             if (!proposalsByIssue[p.issue_id]) proposalsByIssue[p.issue_id] = [];
             proposalsByIssue[p.issue_id].push({
-                id: p.id,
-                userId: p.user_id,
-                userName: p.user_name,
-                text: p.text,
-                votes: p.votes,
-                timestamp: p.created_at
+                id: p.id, userId: p.user_id, userName: p.user_name,
+                text: p.text, votes: p.votes, timestamp: p.created_at
             });
         });
 
@@ -135,7 +137,7 @@ router.post('/', authenticateToken, upload.single('evidence'), async (req, res) 
                 category,
                 creator_id: creatorId,
                 department_id: departmentId,
-                status: 'OPEN',
+                status: 'PENDING_APPROVAL',
                 urgency: parseInt(urgency),
                 deadline,
                 priority_score: priorityScore,
@@ -152,7 +154,7 @@ router.post('/', authenticateToken, upload.single('evidence'), async (req, res) 
             type: 'CREATED',
             user_id: creatorId,
             user_name: req.user.name,
-            description: 'Issue created and submitted'
+            description: 'Complaint submitted — awaiting admin approval'
         });
 
         // Auto-support by creator
@@ -161,7 +163,7 @@ router.post('/', authenticateToken, upload.single('evidence'), async (req, res) 
             issue_id: issueId
         });
 
-        res.status(201).json({ id: issueId, message: 'Issue created', evidenceUrl });
+        res.status(201).json({ id: issueId, message: 'Complaint submitted. Awaiting admin approval.', evidenceUrl });
     } catch (error) {
         console.error('Create issue error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -327,6 +329,109 @@ router.post('/:id/timeline', authenticateToken, async (req, res) => {
         res.status(201).json({ id: timelineId, message: 'Timeline event added' });
     } catch (error) {
         console.error('Timeline error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ==========================================
+// ADMIN APPROVAL WORKFLOW
+// ==========================================
+
+// Approve issue (admin only)
+router.post('/:id/approve', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Only admins can approve complaints' });
+        }
+
+        const { id } = req.params;
+
+        // Verify issue exists and is pending
+        const { data: issue, error: fetchError } = await supabaseAdmin
+            .from('issues')
+            .select('status')
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !issue) {
+            return res.status(404).json({ error: 'Issue not found' });
+        }
+
+        if (issue.status !== 'PENDING_APPROVAL') {
+            return res.status(400).json({ error: 'Issue is not pending approval' });
+        }
+
+        // Update status to OPEN
+        const { error } = await supabaseAdmin
+            .from('issues')
+            .update({ status: 'OPEN' })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        // Timeline event
+        await supabaseAdmin.from('timeline_events').insert({
+            id: 'tl-' + Date.now(),
+            issue_id: id,
+            type: 'APPROVED',
+            user_id: req.user.id,
+            user_name: req.user.name,
+            description: 'Complaint approved by admin and is now open for support'
+        });
+
+        res.json({ message: 'Complaint approved successfully' });
+    } catch (error) {
+        console.error('Approve error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Reject issue (admin only)
+router.post('/:id/reject', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Only admins can reject complaints' });
+        }
+
+        const { id } = req.params;
+        const { reason } = req.body;
+
+        // Verify issue exists and is pending
+        const { data: issue, error: fetchError } = await supabaseAdmin
+            .from('issues')
+            .select('status')
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !issue) {
+            return res.status(404).json({ error: 'Issue not found' });
+        }
+
+        if (issue.status !== 'PENDING_APPROVAL') {
+            return res.status(400).json({ error: 'Issue is not pending approval' });
+        }
+
+        // Update status to REJECTED
+        const { error } = await supabaseAdmin
+            .from('issues')
+            .update({ status: 'REJECTED' })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        // Timeline event
+        await supabaseAdmin.from('timeline_events').insert({
+            id: 'tl-' + Date.now(),
+            issue_id: id,
+            type: 'REJECTED',
+            user_id: req.user.id,
+            user_name: req.user.name,
+            description: `Complaint rejected by admin${reason ? ': ' + reason : ''}`
+        });
+
+        res.json({ message: 'Complaint rejected' });
+    } catch (error) {
+        console.error('Reject error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

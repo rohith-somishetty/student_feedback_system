@@ -122,6 +122,17 @@ export const issuesAPI = {
             method: 'POST',
             body: { type, description, metadata } as any,
         }),
+
+    approve: (id: string) =>
+        apiRequest(`/issues/${id}/approve`, {
+            method: 'POST',
+        }),
+
+    reject: (id: string, reason?: string) =>
+        apiRequest(`/issues/${id}/reject`, {
+            method: 'POST',
+            body: { reason } as any,
+        }),
 };
 
 // Departments API

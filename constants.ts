@@ -54,7 +54,7 @@ export const MOCK_USERS = [
     id: 'super-admin-1',
     name: 'Leadership Council',
     email: 'leadership@institution.edu',
-    role: UserRole.SUPER_ADMIN,
+    role: UserRole.ADMIN,
     credibility: 100,
     adminId: 'SA001',
     password: '0000'
