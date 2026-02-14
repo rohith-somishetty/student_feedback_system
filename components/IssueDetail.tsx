@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Issue, IssueStatus, User, UserRole, Urgency, Support, Comment, Proposal } from '../types';
-import { createTimelineEvent, isIssueOverdue } from '../utils/timeline';
+import { isIssueOverdue } from '../utils/timeline';
 
 interface IssueDetailProps {
   issues: Issue[];
@@ -51,27 +51,19 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
 
   const hasSupported = supports.some(s => s.userId === user.id && s.issueId === issue.id);
 
-  const handleSupport = () => {
+  const handleSupport = async () => {
     if (hasSupported) return;
     setSupportLoading(true);
-    setTimeout(() => {
-      const timelineEvent = createTimelineEvent(
-        'SUPPORT',
-        user.id,
-        'Anonymous Student',
-        `Endorsed this issue (credibility: ${user.credibility})`
-      );
-
-      const updatedIssue: Issue = {
-        ...issue,
-        supportCount: issue.supportCount + 1,
-        priorityScore: issue.priorityScore + (user.credibility * 0.75),
-        timeline: [...issue.timeline, timelineEvent]
-      };
-      onUpdateIssue(updatedIssue);
-      onRecordSupport(user.id, issue.id);
-      setSupportLoading(false);
-    }, 600);
+    try {
+      // Only call onRecordSupport — the server's /support endpoint
+      // atomically increments support_count via RPC and reloads data.
+      // Previously, onUpdateIssue was also sending an incremented supportCount,
+      // causing a double increment.
+      await onRecordSupport(user.id, issue.id);
+    } catch (err: any) {
+      alert(err.message || 'Failed to support');
+    }
+    setSupportLoading(false);
   };
 
   const handleResolve = async () => {
@@ -240,10 +232,7 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
                 <span className="w-2 h-2 rounded-full bg-slate-400"></span>
                 {issue.category}
               </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 border border-slate-100">
-                <span className={`w-2 h-2 rounded-full ${issue.urgency >= 4 ? 'bg-rose-500 animate-pulse' : 'bg-amber-400'}`}></span>
-                {Urgency[issue.urgency]} Priority
-              </div>
+
               <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${isOverdue ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-white/50 border-slate-100'}`}>
                 <span>🗓 Deadline: {new Date(issue.deadline).toLocaleDateString()}</span>
                 {isOverdue && <span className="text-[10px] bg-rose-100 px-1.5 py-0.5 rounded text-rose-600 uppercase tracking-wide">Overdue</span>}
@@ -258,7 +247,7 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
             </div>
             <div className="flex gap-4 mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               <span>▲ {issue.supportCount} Supports</span>
-              <span>⚠ {issue.contestCount} Flags</span>
+              {issue.contestedFlag && <span>⚠ {issue.contestCount} Flags</span>}
             </div>
           </div>
         </div>

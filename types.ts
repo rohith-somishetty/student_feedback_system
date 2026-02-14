@@ -107,6 +107,16 @@ export interface Support {
   issueId: string;
 }
 
+export interface Notification {
+  id: string;
+  user_id: string;
+  issue_id: string;
+  type: 'APPROVED' | 'REJECTED' | 'RESOLVED' | 'CONTEST_ACCEPTED' | 'CONTEST_REJECTED' | 'RE_RESOLVED' | 'FINAL_CLOSED' | 'REOPENED';
+  message: string;
+  read: boolean;
+  created_at: string;
+}
+
 export interface Department {
   id: string;
   name: string;

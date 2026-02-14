@@ -194,8 +194,8 @@ const Dashboard: React.FC<DashboardProps> = ({ issues, user, departments, onAppr
                   <div className="flex-grow space-y-2">
                     <div className="flex items-center gap-3">
                       <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide ${issue.status === IssueStatus.PENDING_REVALIDATION ? 'bg-amber-100 text-amber-700' :
-                          issue.status === IssueStatus.RE_RESOLVED ? 'bg-violet-100 text-violet-700' :
-                            'bg-rose-100 text-rose-600'
+                        issue.status === IssueStatus.RE_RESOLVED ? 'bg-violet-100 text-violet-700' :
+                          'bg-rose-100 text-rose-600'
                         }`}>
                         {issue.status === IssueStatus.PENDING_REVALIDATION ? 'Pending Revalidation' :
                           issue.status === IssueStatus.RE_RESOLVED ? 'Re-Resolved (Voting)' :
@@ -239,7 +239,7 @@ const Dashboard: React.FC<DashboardProps> = ({ issues, user, departments, onAppr
                       </h3>
                       <p className="text-sm text-slate-500 line-clamp-2">{issue.description}</p>
                     </div>
-                    <div className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl ${issue.urgency >= 4 ? 'bg-rose-50 text-rose-600' : 'bg-indigo-50 text-brand-primary'
+                    <div className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl ${issue.priorityScore >= 100 ? 'bg-rose-50 text-rose-600' : 'bg-indigo-50 text-brand-primary'
                       } font-display font-bold text-xl`}>
                       <span>{Math.round(issue.priorityScore)}</span>
                       <span className="text-[8px] uppercase tracking-wider opacity-70">Score</span>

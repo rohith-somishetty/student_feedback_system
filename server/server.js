@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth.js');
 const userRoutes = require('./routes/users.js');
 const issueRoutes = require('./routes/issues.js');
 const departmentRoutes = require('./routes/departments.js');
+const { router: notificationRoutes } = require('./routes/notifications.js');
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/issues', issueRoutes);
 app.use('/api/departments', departmentRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

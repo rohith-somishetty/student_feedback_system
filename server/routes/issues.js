@@ -2,6 +2,7 @@ const express = require('express');
 const { supabaseAdmin } = require('../database.js');
 const { authenticateToken } = require('../middleware/auth.js');
 const { upload } = require('../middleware/upload.js');
+const { createNotification } = require('./notifications.js');
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.get('/', authenticateToken, async (req, res) => {
             query = query.or(`status.neq.PENDING_APPROVAL,status.neq.REJECTED,creator_id.eq.${req.user.id}`);
         }
 
-        const { data: allIssues, error } = await query.order('created_at', { ascending: false });
+        const { data: allIssues, error } = await query.order('priority_score', { ascending: false });
         if (error) throw error;
 
         // For students: filter in JS for clarity
@@ -102,10 +103,10 @@ router.get('/', authenticateToken, async (req, res) => {
 // Create issue
 router.post('/', authenticateToken, upload.single('evidence'), async (req, res) => {
     try {
-        const { title, description, category, departmentId, urgency, deadline } = req.body;
+        const { title, description, category, departmentId, deadline } = req.body;
         const creatorId = req.user.id;
 
-        if (!title || !description || !category || !departmentId || !urgency || !deadline) {
+        if (!title || !description || !category || !departmentId || !deadline) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
@@ -128,7 +129,10 @@ router.post('/', authenticateToken, upload.single('evidence'), async (req, res) 
             }
         }
 
-        const priorityScore = (req.user.credibility || 50) * parseInt(urgency);
+        // Default urgency to 1 (LOW) since we removed the selector
+        const defaultUrgency = 1;
+        const priorityScore = (req.user.credibility || 50); // Base priority = Creator Credibility
+
         const issueId = 'iss-' + Date.now();
 
         // Insert issue
@@ -142,7 +146,7 @@ router.post('/', authenticateToken, upload.single('evidence'), async (req, res) 
                 creator_id: creatorId,
                 department_id: departmentId,
                 status: 'PENDING_APPROVAL',
-                urgency: parseInt(urgency),
+                urgency: defaultUrgency,
                 deadline,
                 priority_score: priorityScore,
                 evidence_url: evidenceUrl,
@@ -217,33 +221,65 @@ router.post('/:id/support', authenticateToken, async (req, res) => {
         const { id } = req.params;
         const userId = req.user.id;
 
-        // Call the Supabase RPC function for atomic support and priority recalculation
-        const { data, error } = await supabaseAdmin.rpc('support_issue', {
-            p_issue_id: id,
-            p_user_id: userId
-        });
+        // 1. Check if already supported
+        const { data: existing } = await supabaseAdmin
+            .from('supports')
+            .select('id')
+            .eq('issue_id', id)
+            .eq('user_id', userId)
+            .single();
 
-        if (error) {
-            console.error('RPC Error:', error);
-            return res.status(500).json({ error: error.message || 'Failed to process support' });
+        if (existing) {
+            return res.status(400).json({ error: 'You have already supported this issue' });
         }
 
-        // The RPC returns a JSON object with error or success data
-        if (data.error) {
-            return res.status(data.status || 400).json({ error: data.error });
-        }
+        // 2. Insert support
+        const { error: insertError } = await supabaseAdmin
+            .from('supports')
+            .insert({
+                user_id: userId,
+                issue_id: id
+            });
 
-        // Fetch the updated issue object to return as requested
-        const { data: updatedIssue, error: fetchError } = await supabaseAdmin
+        if (insertError) throw insertError;
+
+        // 3. Update issue stats (Atomic increment + Priority Recalculation)
+        // Fetch current stats first
+        const { data: issue, error: fetchError } = await supabaseAdmin
             .from('issues')
-            .select('*')
+            .select('support_count, priority_score')
             .eq('id', id)
             .single();
 
         if (fetchError) throw fetchError;
 
+        // New Score = Old Score + 5 (Each support adds 5 points)
+        const newSupportCount = (issue.support_count || 0) + 1;
+        const newPriorityScore = (issue.priority_score || 0) + 5;
+
+        const { data: updatedIssue, error: updateError } = await supabaseAdmin
+            .from('issues')
+            .update({
+                support_count: newSupportCount,
+                priority_score: newPriorityScore
+            })
+            .eq('id', id)
+            .select('*')
+            .single();
+
+        if (updateError) throw updateError;
+
+        await supabaseAdmin.from('timeline_events').insert({
+            id: 'tl-' + Date.now(),
+            issue_id: id,
+            type: 'SUPPORT',
+            user_id: userId,
+            user_name: 'Anonymous Student',
+            description: 'Issue supported by a student'
+        });
+
         res.json({
-            message: data.message,
+            message: 'Support added',
             issue: {
                 id: updatedIssue.id,
                 title: updatedIssue.title,
@@ -378,6 +414,9 @@ router.post('/:id/approve', authenticateToken, async (req, res) => {
             description: 'Complaint approved by admin and is now open for support'
         });
 
+        // Notify student
+        await createNotification(issue.creator_id, id, 'APPROVED', 'Your complaint has been approved and is now open for support.');
+
         res.json({ message: 'Complaint approved successfully' });
     } catch (error) {
         console.error('Approve error:', error);
@@ -427,7 +466,6 @@ router.post('/:id/reject', authenticateToken, async (req, res) => {
 
         if (error) throw error;
 
-        // Timeline event
         await supabaseAdmin.from('timeline_events').insert({
             id: 'tl-' + Date.now(),
             issue_id: id,
@@ -436,6 +474,9 @@ router.post('/:id/reject', authenticateToken, async (req, res) => {
             user_name: 'Admin',
             description: `Complaint rejected by admin${reason ? ': ' + reason : ''}`
         });
+
+        // Notify student
+        await createNotification(issue.creator_id, id, 'REJECTED', `Your complaint was rejected: ${reason || 'No reason provided'}`);
 
         res.json({ message: 'Complaint rejected' });
     } catch (error) {
@@ -487,7 +528,6 @@ router.post('/:id/resolve', authenticateToken, async (req, res) => {
         // Clear any old contests from previous rounds
         await supabaseAdmin.from('contests').delete().eq('issue_id', id);
 
-        // Timeline
         await supabaseAdmin.from('timeline_events').insert({
             id: 'tl-' + Date.now(),
             issue_id: id,
@@ -497,6 +537,13 @@ router.post('/:id/resolve', authenticateToken, async (req, res) => {
             description: 'Issue resolved. 7-day contest window opened.',
             metadata: { newStatus: 'RESOLVED', evidenceUrl }
         });
+
+        // Notify student
+        // Fetch creator_id first
+        const { data: issue } = await supabaseAdmin.from('issues').select('creator_id').eq('id', id).single();
+        if (issue) {
+            await createNotification(issue.creator_id, id, 'RESOLVED', 'Your complaint has been marked as resolved.');
+        }
 
         res.json({ message: 'Issue resolved. Contest window opened.' });
     } catch (error) {
@@ -645,6 +692,12 @@ router.post('/:id/contest-decision', authenticateToken, async (req, res) => {
                 description: `Contest ACCEPTED. Issue reopened. ${explanation || ''}`,
                 metadata: { decision: 'ACCEPT', explanation, evidenceUrl }
             });
+
+            // Notify student
+            const { data: creator } = await supabaseAdmin.from('issues').select('creator_id').eq('id', id).single();
+            if (creator) {
+                await createNotification(creator.creator_id, id, 'CONTEST_ACCEPTED', `Your contest was accepted. The issue has been reopened. ${explanation || ''}`);
+            }
         } else {
             // REJECT — issue stays resolved/rejected, contest window continues
             await supabaseAdmin.from('timeline_events').insert({
@@ -656,9 +709,19 @@ router.post('/:id/contest-decision', authenticateToken, async (req, res) => {
                 description: `Contest REJECTED. ${explanation || ''}`,
                 metadata: { decision: 'REJECT', explanation, evidenceUrl }
             });
+
+            // Notify student
+            const { data: creator } = await supabaseAdmin.from('issues').select('creator_id').eq('id', id).single();
+            if (creator) {
+                await createNotification(creator.creator_id, id, 'CONTEST_REJECTED', `Your contest was rejected. The issue remains resolved/rejected. ${explanation || ''}`);
+            }
         }
 
-        res.json({ message: `Contest ${decision.toLowerCase()}ed` });
+        // Notify student
+        const { data: creator } = await supabaseAdmin.from('issues').select('creator_id').eq('id', id).single();
+        if (creator) {
+            await createNotification(creator.creator_id, id, 'CONTEST_REJECTED', `Your contest was rejected. The issue remains resolved/rejected. ${explanation || ''}`);
+        }
     } catch (error) {
         console.error('Contest decision error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -718,6 +781,14 @@ router.post('/:id/re-resolve', authenticateToken, async (req, res) => {
             description: 'Issue re-resolved. 7-day voting window opened.',
             metadata: { newStatus: 'RE_RESOLVED', evidenceUrl }
         });
+
+        // Notify student
+        if (issue.creator_id) { // issue loaded above might not have creator_id selected, let's select it
+            const { data: creator } = await supabaseAdmin.from('issues').select('creator_id').eq('id', id).single();
+            if (creator) {
+                await createNotification(creator.creator_id, id, 'RE_RESOLVED', 'Your issue has been re-resolved. Please review and vote.');
+            }
+        }
 
         res.json({ message: 'Issue re-resolved. Revalidation voting window opened.' });
     } catch (error) {
@@ -797,6 +868,11 @@ router.post('/:id/revalidation-vote', authenticateToken, async (req, res) => {
                 description: 'Issue permanently closed after student confirmation votes.',
                 metadata: { confirmCount, rejectCount }
             });
+
+            // Notify student
+            if (issue.creator_id) { // might need refetch if issue obj doesn't have it
+                await createNotification(issue.creator_id, id, 'FINAL_CLOSED', 'Your issue has been permanently closed after student confirmation.');
+            }
         } else if (rejectCount >= VOTE_THRESHOLD) {
             newStatus = 'OPEN';
             statusMessage = 'Enough rejections received. Issue marked as not solved.';
@@ -818,6 +894,11 @@ router.post('/:id/revalidation-vote', authenticateToken, async (req, res) => {
                 description: 'Issue reopened after students rejected the re-resolution.',
                 metadata: { confirmCount, rejectCount }
             });
+
+            // Notify student
+            if (issue.creator_id) {
+                await createNotification(issue.creator_id, id, 'REOPENED', 'Your issue has been reopened after student rejection votes.');
+            }
         }
 
         res.json({

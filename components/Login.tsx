@@ -11,7 +11,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'student' | 'admin' | 'leadership'>('student');
+    const [activeTab, setActiveTab] = useState<'student' | 'admin'>('student');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -29,16 +29,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         }
     };
 
-    const handleDemoClick = (role: 'student' | 'admin' | 'leadership') => {
+    const handleDemoClick = (role: 'student' | 'admin') => {
         setActiveTab(role);
         if (role === 'student') {
             setEmail('alex@student.edu');
             setPassword('000000');
-        } else if (role === 'admin') {
-            setEmail('sarah@admin.edu');
-            setPassword('000000');
         } else {
-            setEmail('leadership@institution.edu');
+            setEmail('sarah@admin.edu');
             setPassword('000000');
         }
     };
@@ -92,7 +89,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     </div>
 
                     <div className="flex p-1 bg-slate-50 rounded-xl mb-8 border border-slate-100">
-                        {(['student', 'admin', 'leadership'] as const).map((role) => (
+                        {(['student', 'admin'] as const).map((role) => (
                             <button
                                 key={role}
                                 onClick={() => handleDemoClick(role)}

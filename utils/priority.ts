@@ -35,14 +35,12 @@ export const calculatePriorityScore = (
     return Math.round(baseScore * 10) / 10;
 };
 
-export const calculateDeadline = (category: IssueCategory, urgency: Urgency): string => {
+export const calculateDeadline = (category: IssueCategory): string => {
     const config = CATEGORY_CONFIG[category];
     let days = config.baseDeadlineDays;
 
-    // Adjust based on urgency
-    if (urgency === Urgency.CRITICAL) days = Math.max(1, days * 0.2); // 80% faster
-    else if (urgency === Urgency.HIGH) days = Math.max(1, days * 0.5); // 50% faster
-    else if (urgency === Urgency.LOW) days = days * 1.5; // 50% slower
+    // Default to a middle ground or keep base
+    // urgency was removed, so we just use the base category deadline
 
     return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 };

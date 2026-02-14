@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Department, Urgency, IssueCategory } from '../types';
+import { User, Department, IssueCategory } from '../types';
 import { CATEGORY_CONFIG } from '../constants';
 import { calculateDeadline } from '../utils/priority';
 
@@ -17,7 +17,6 @@ const IssueForm: React.FC<IssueFormProps> = ({ user, departments, onAddIssue }) 
     description: '',
     category: IssueCategory.OTHER,
     departmentId: '',
-    urgency: Urgency.LOW,
     evidenceUrl: '',
   });
 
@@ -30,7 +29,7 @@ const IssueForm: React.FC<IssueFormProps> = ({ user, departments, onAddIssue }) 
     setFormData(prev => ({
       ...prev,
       category,
-      departmentId: config.defaultDeptId
+      // departmentId: config.defaultDeptId // Removed auto-assignment to allow user choice
     }));
   };
 
@@ -38,7 +37,7 @@ const IssueForm: React.FC<IssueFormProps> = ({ user, departments, onAddIssue }) 
     e.preventDefault();
     if (!formData.title || !formData.description) return;
 
-    const deadline = calculateDeadline(formData.category, formData.urgency);
+    const deadline = calculateDeadline(formData.category);
 
     onAddIssue({
       ...formData,
@@ -48,14 +47,7 @@ const IssueForm: React.FC<IssueFormProps> = ({ user, departments, onAddIssue }) 
     navigate('/issues');
   };
 
-  const getUrgencyColor = (u: Urgency) => {
-    switch (u) {
-      case Urgency.CRITICAL: return 'text-rose-500 border-rose-200 bg-rose-50';
-      case Urgency.HIGH: return 'text-orange-500 border-orange-200 bg-orange-50';
-      case Urgency.MEDIUM: return 'text-amber-500 border-amber-200 bg-amber-50';
-      default: return 'text-emerald-500 border-emerald-200 bg-emerald-50';
-    }
-  };
+
 
   return (
     <div className="max-w-4xl mx-auto animate-fadeIn font-outfit">
@@ -114,7 +106,7 @@ const IssueForm: React.FC<IssueFormProps> = ({ user, departments, onAddIssue }) 
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Assigned Department</label>
                 <div className="relative">
                   <select
-                    className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-slate-500 appearance-none cursor-pointer"
+                    className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-white/80 focus:bg-white focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-bold text-slate-700 appearance-none cursor-pointer"
                     value={formData.departmentId}
                     onChange={e => setFormData(prev => ({ ...prev, departmentId: e.target.value }))}
                     onFocus={() => setActiveField('department')}
@@ -131,28 +123,6 @@ const IssueForm: React.FC<IssueFormProps> = ({ user, departments, onAddIssue }) 
               </div>
             </div>
 
-            {/* Urgency Selection */}
-            <div className="space-y-2">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Urgency Level</label>
-              <div className="grid grid-cols-1 gap-3">
-                {[Urgency.LOW, Urgency.MEDIUM, Urgency.HIGH, Urgency.CRITICAL].map((u) => (
-                  <div
-                    key={u}
-                    onClick={() => setFormData(prev => ({ ...prev, urgency: u }))}
-                    className={`
-                      px-5 py-3 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between group
-                      ${formData.urgency === u
-                        ? `${getUrgencyColor(u)} border-current shadow-sm scale-[1.02]`
-                        : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'
-                      }
-                    `}
-                  >
-                    <span className="font-black text-xs uppercase tracking-widest">{u === 1 ? 'Low' : u === 2 ? 'Medium' : u === 3 ? 'High' : 'Critical'} Impact</span>
-                    <div className={`w-3 h-3 rounded-full ${formData.urgency === u ? 'bg-current' : 'bg-slate-200 group-hover:bg-slate-300'}`}></div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
 
           <div className={`transition-all duration-300 ${activeField === 'description' ? 'scale-[1.02]' : ''}`}>

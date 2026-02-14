@@ -170,3 +170,12 @@ export const departmentsAPI = {
     getAll: () => apiRequest('/departments'),
     getSupports: () => apiRequest('/departments/supports'),
 };
+
+// Notifications API
+export const notificationsAPI = {
+    getAll: () => apiRequest('/notifications'),
+    markRead: (id: string) =>
+        apiRequest(`/notifications/${id}/read`, {
+            method: 'PUT',
+        }),
+};

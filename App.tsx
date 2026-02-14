@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { HashRouter, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
-import { User, UserRole, Issue, IssueStatus, Urgency, Department, Support } from './types';
+import { User, UserRole, Issue, IssueStatus, Urgency, Department, Support, Notification } from './types';
 import { MOCK_USERS, MOCK_ISSUES, DEPARTMENTS } from './constants';
 import { calculatePriorityScore } from './utils/priority';
-import { authAPI, usersAPI, issuesAPI, departmentsAPI, setAuthToken } from './services/api';
+import { authAPI, usersAPI, issuesAPI, departmentsAPI, notificationsAPI, setAuthToken } from './services/api';
 import Navbar from './components/Navbar';
 import Dashboard from './components/Dashboard';
 import IssueForm from './components/IssueForm';
 import IssueList from './components/IssueList';
 import IssueDetail from './components/IssueDetail';
+import MyIssues from './components/MyIssues';
 
 import Profile from './components/Profile';
 import Archive from './components/Archive';
@@ -20,6 +21,7 @@ const App: React.FC = () => {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [supports, setSupports] = useState<Support[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Load data from backend
@@ -33,12 +35,13 @@ const App: React.FC = () => {
         }
 
         // Load user data
-        const [userData, usersData, issuesData, deptsData, supportsData] = await Promise.all([
+        const [userData, usersData, issuesData, deptsData, supportsData, notifsData] = await Promise.all([
           usersAPI.getMe(),
           usersAPI.getAll(),
           issuesAPI.getAll(),
           departmentsAPI.getAll(),
-          departmentsAPI.getSupports()
+          departmentsAPI.getSupports(),
+          notificationsAPI.getAll()
         ]);
 
         setCurrentUser(userData);
@@ -46,6 +49,7 @@ const App: React.FC = () => {
         setIssues(issuesData);
         setDepartments(deptsData);
         setSupports(supportsData);
+        setNotifications(notifsData.data || []);
       } catch (error) {
         console.error('Failed to load data:', error);
         // If error, clear token and show login
@@ -62,17 +66,19 @@ const App: React.FC = () => {
     setCurrentUser(user);
     // Reload all data after login
     try {
-      const [usersData, issuesData, deptsData, supportsData] = await Promise.all([
+      const [usersData, issuesData, deptsData, supportsData, notifsData] = await Promise.all([
         usersAPI.getAll(),
         issuesAPI.getAll(),
         departmentsAPI.getAll(),
-        departmentsAPI.getSupports()
+        departmentsAPI.getSupports(),
+        notificationsAPI.getAll()
       ]);
 
       setAllUsers(usersData);
       setIssues(issuesData);
       setDepartments(deptsData);
       setSupports(supportsData);
+      setNotifications(notifsData.data || []);
     } catch (error) {
       console.error('Failed to load data after login:', error);
     }
@@ -84,6 +90,7 @@ const App: React.FC = () => {
     setAllUsers([]);
     setIssues([]);
     setSupports([]);
+    setNotifications([]);
   };
 
   const addIssue = async (newIssue: Partial<Issue>) => {
@@ -174,6 +181,16 @@ const App: React.FC = () => {
     }
   };
 
+  const markNotificationRead = async (id: string) => {
+    try {
+      await notificationsAPI.markRead(id);
+      // Optimistic update
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (error) {
+      console.error('Failed to mark notification read:', error);
+    }
+  };
+
   const sortedIssues = useMemo(() => {
     return [...issues].sort((a, b) => {
       if (a.priorityScore !== b.priorityScore) {
@@ -197,7 +214,15 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <div className="min-h-screen bg-slate-50 transition-colors duration-500">
-        {currentUser && <Navbar user={currentUser} onLogout={handleLogout} issues={issues} />}
+        {currentUser && (
+          <Navbar
+            user={currentUser}
+            onLogout={handleLogout}
+            issues={issues}
+            notifications={notifications}
+            onMarkNotificationRead={markNotificationRead}
+          />
+        )}
 
         <main className={currentUser ? 'container mx-auto px-6 pt-24 pb-12' : ''}>
           <Routes>
@@ -221,6 +246,7 @@ const App: React.FC = () => {
                   />
                 } />
                 <Route path="/report" element={<IssueForm user={currentUser} departments={departments} onAddIssue={addIssue} />} />
+                <Route path="/my-issues" element={<MyIssues issues={sortedIssues} departments={departments} user={currentUser} />} />
                 <Route path="/issues" element={<IssueList issues={sortedIssues} departments={departments} />} />
                 <Route path="/profile" element={<Profile user={currentUser} onUpdateProfile={updateProfile} />} />
                 <Route path="/issues/:id" element={
