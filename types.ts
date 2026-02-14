@@ -12,6 +12,7 @@ export enum IssueStatus {
   RESOLVED_PENDING_REVIEW = 'RESOLVED_PENDING_REVIEW',
   CONTESTED = 'CONTESTED',
   REOPENED = 'REOPENED',
+  PENDING_REVALIDATION = 'PENDING_REVALIDATION',
   RE_RESOLVED = 'RE_RESOLVED',
   FINAL_CLOSED = 'FINAL_CLOSED',
   REJECTED = 'REJECTED'
@@ -93,6 +94,9 @@ export interface Issue {
   resolutionEvidenceUrl?: string;
   supportCount: number;
   contestCount: number;
+  contestedFlag: boolean;
+  contestWindowEnd: string | null;
+  revalidationWindowEnd: string | null;
   comments: Comment[];
   proposals: Proposal[];
   timeline: TimelineEvent[];

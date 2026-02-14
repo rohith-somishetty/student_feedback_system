@@ -2,8 +2,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Issue, IssueStatus, User, UserRole, Urgency, Support, Comment, Proposal } from '../types';
-import { CREDIBILITY_RULES, CREDIBILITY_THRESHOLDS } from '../constants';
-import { calculatePriorityScore, updateCredibility } from '../utils/priority';
 import { createTimelineEvent, isIssueOverdue } from '../utils/timeline';
 
 interface IssueDetailProps {
@@ -16,6 +14,11 @@ interface IssueDetailProps {
   onUpdateUser: (userId: string, updates: Partial<User>) => void;
   onApproveIssue: (id: string) => void;
   onRejectIssue: (id: string, reason?: string) => void;
+  onContestIssue?: (id: string, reason: string) => Promise<any>;
+  onContestDecision?: (id: string, decision: 'ACCEPT' | 'REJECT', explanation?: string) => Promise<any>;
+  onReResolve?: (id: string, summary: string, evidenceUrl?: string) => Promise<any>;
+  onRevalidationVote?: (id: string, voteType: 'confirm' | 'reject') => Promise<any>;
+  onResolveIssue?: (id: string, summary: string, evidenceUrl?: string) => Promise<any>;
 }
 
 const statusLabel = (status: string) => {
@@ -26,14 +29,17 @@ const statusLabel = (status: string) => {
   }
 };
 
-const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports, onUpdateIssue, onRecordSupport, onUpdateUser, onApproveIssue, onRejectIssue }) => {
+const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports, onUpdateIssue, onRecordSupport, onUpdateUser, onApproveIssue, onRejectIssue, onContestIssue, onContestDecision, onReResolve, onRevalidationVote, onResolveIssue }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const issue = issues.find(i => i.id === id);
 
   const [supportLoading, setSupportLoading] = useState(false);
   const [resolutionUrl, setResolutionUrl] = useState('');
+  const [resolutionSummary, setResolutionSummary] = useState('');
   const [contestReason, setContestReason] = useState('');
+  const [contestDecisionExplanation, setContestDecisionExplanation] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   const [newComment, setNewComment] = useState('');
   const [newProposal, setNewProposal] = useState('');
@@ -68,69 +74,69 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
     }, 600);
   };
 
-  const handleResolve = () => {
-    if (!resolutionUrl) return alert('Admin must provide evidence link before resolving.');
-
-    const timelineEvent = createTimelineEvent(
-      'STATUS_CHANGE',
-      user.id,
-      'Admin',
-      'Marked issue as resolved',
-      { oldStatus: issue.status, newStatus: IssueStatus.RESOLVED, evidenceUrl: resolutionUrl }
-    );
-
-    const updatedIssue = {
-      ...issue,
-      status: IssueStatus.RESOLVED,
-      resolutionEvidenceUrl: resolutionUrl,
-      timeline: [...issue.timeline, timelineEvent]
-    };
-    onUpdateIssue(updatedIssue);
+  const handleResolve = async () => {
+    if (!resolutionSummary.trim()) return alert('Resolution summary is required.');
+    setActionLoading(true);
+    try {
+      if (onResolveIssue) {
+        await onResolveIssue(issue.id, resolutionSummary, resolutionUrl || undefined);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to resolve');
+    }
+    setActionLoading(false);
   };
 
-  const handleContest = () => {
-    if (user.credibility < CREDIBILITY_THRESHOLDS.MIN_TO_CONTEST) {
-      return alert(`Insufficient Credibility: ${user.credibility}/${CREDIBILITY_THRESHOLDS.MIN_TO_CONTEST} required.`);
-    }
+  const handleContest = async () => {
     if (!contestReason.trim()) return alert('Please provide a reason for the contest.');
-
-    const newContestCount = issue.contestCount + 1;
-    let newStatus = issue.status;
-
-    const timelineEvent = createTimelineEvent(
-      'CONTEST',
-      user.id,
-      'Anonymous Student',
-      `Contested resolution: ${contestReason}`,
-      { contestCount: newContestCount }
-    );
-
-    // Check if threshold is reached
-    if (newContestCount >= CREDIBILITY_THRESHOLDS.MIN_CONTESTS_REQUIRED) {
-      newStatus = IssueStatus.CONTESTED;
-      const statusChangeEvent = createTimelineEvent(
-        'STATUS_CHANGE',
-        'system',
-        'System',
-        'Issue automatically contested due to threshold reached',
-        { oldStatus: issue.status, newStatus: IssueStatus.CONTESTED, contestCount: newContestCount }
-      );
-      onUpdateIssue({
-        ...issue,
-        contestCount: newContestCount,
-        status: newStatus,
-        timeline: [...issue.timeline, timelineEvent, statusChangeEvent]
-      });
-    } else {
-      onUpdateIssue({
-        ...issue,
-        contestCount: newContestCount,
-        status: newStatus,
-        timeline: [...issue.timeline, timelineEvent]
-      });
+    setActionLoading(true);
+    try {
+      if (onContestIssue) {
+        await onContestIssue(issue.id, contestReason);
+        setContestReason('');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to contest');
     }
+    setActionLoading(false);
+  };
 
-    setContestReason('');
+  const handleContestDecision = async (decision: 'ACCEPT' | 'REJECT') => {
+    setActionLoading(true);
+    try {
+      if (onContestDecision) {
+        await onContestDecision(issue.id, decision, contestDecisionExplanation || undefined);
+        setContestDecisionExplanation('');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to process decision');
+    }
+    setActionLoading(false);
+  };
+
+  const handleReResolve = async () => {
+    if (!resolutionSummary.trim()) return alert('Resolution summary is required.');
+    setActionLoading(true);
+    try {
+      if (onReResolve) {
+        await onReResolve(issue.id, resolutionSummary, resolutionUrl || undefined);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to re-resolve');
+    }
+    setActionLoading(false);
+  };
+
+  const handleVote = async (voteType: 'confirm' | 'reject') => {
+    setActionLoading(true);
+    try {
+      if (onRevalidationVote) {
+        await onRevalidationVote(issue.id, voteType);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to vote');
+    }
+    setActionLoading(false);
   };
 
   // Admin approval handlers
@@ -215,8 +221,8 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
           <div className="space-y-6 max-w-2xl">
             <div className="flex flex-wrap items-center gap-3">
               <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm backdrop-blur-md border ${issue.status === IssueStatus.RESOLVED ? 'bg-emerald-500 text-white border-emerald-400' :
-                  issue.status === IssueStatus.CONTESTED ? 'bg-rose-500 text-white border-rose-400' :
-                    'premium-gradient-primary text-white border-white/20'
+                issue.status === IssueStatus.CONTESTED ? 'bg-rose-500 text-white border-rose-400' :
+                  'premium-gradient-primary text-white border-white/20'
                 }`}>
                 {statusLabel(issue.status)}
               </span>
@@ -283,9 +289,9 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
               {(issue.timeline || []).slice().reverse().map((event, i) => (
                 <div key={event.id} className="relative pl-10 animate-in" style={{ animationDelay: `${i * 100}ms` }}>
                   <div className={`absolute left-0 top-0 w-10 h-10 rounded-xl border-4 border-white shadow-sm flex items-center justify-center text-sm z-10 ${event.type === 'CREATED' ? 'bg-indigo-100 text-indigo-600' :
-                      event.type === 'STATUS_CHANGE' ? 'bg-emerald-100 text-emerald-600' :
-                        event.type === 'SUPPORT' ? 'bg-amber-100 text-amber-600' :
-                          event.type === 'CONTEST' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'
+                    event.type === 'STATUS_CHANGE' ? 'bg-emerald-100 text-emerald-600' :
+                      event.type === 'SUPPORT' ? 'bg-amber-100 text-amber-600' :
+                        event.type === 'CONTEST' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'
                     }`}>
                     {event.type === 'CREATED' ? '📝' : event.type === 'STATUS_CHANGE' ? '✓' : event.type === 'SUPPORT' ? '▲' : event.type === 'CONTEST' ? '!' : '•'}
                   </div>
@@ -399,56 +405,198 @@ const IssueDetail: React.FC<IssueDetailProps> = ({ issues, users, user, supports
               </div>
             )}
 
-            {user.role === UserRole.ADMIN && issue.status === IssueStatus.OPEN && (
+            {user.role === UserRole.ADMIN && (issue.status === IssueStatus.OPEN || issue.status === IssueStatus.IN_REVIEW) && (
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <input
+                  type="text"
+                  value={resolutionSummary}
+                  onChange={e => setResolutionSummary(e.target.value)}
+                  placeholder="Resolution summary..."
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs"
+                />
                 <input
                   type="text"
                   value={resolutionUrl}
                   onChange={e => setResolutionUrl(e.target.value)}
-                  placeholder="Evidence URL..."
+                  placeholder="Evidence URL (optional)..."
                   className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs"
                 />
-                <button onClick={handleResolve} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all">
-                  Mark Resolved
+                <button
+                  onClick={handleResolve}
+                  disabled={actionLoading || !resolutionSummary.trim()}
+                  className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 transition-all"
+                >
+                  {actionLoading ? 'Processing...' : 'Mark Resolved'}
                 </button>
               </div>
             )}
 
-            {/* Resolved State */}
-            {issue.status === IssueStatus.RESOLVED && (
-              <div className="text-center p-6 rounded-2xl bg-emerald-50 border border-emerald-100">
-                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                </div>
-                <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide mb-4">Protocol Resolved</p>
-                <a href={issue.resolutionEvidenceUrl} target="_blank" rel="noreferrer" className="block w-full py-2 bg-emerald-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors">
-                  View Evidence
-                </a>
+            {/* Contest Window Helper */}
+            {(() => {
+              const now = new Date();
+              const contestWindowOpen = issue.contestWindowEnd && new Date(issue.contestWindowEnd) > now;
+              const revalWindowOpen = issue.revalidationWindowEnd && new Date(issue.revalidationWindowEnd) > now;
 
-                {user.role === UserRole.STUDENT && (
-                  <div className="mt-4 pt-4 border-t border-emerald-200/50">
-                    <button
-                      onClick={() => {
-                        if (issue.contestCount >= CREDIBILITY_THRESHOLDS.MIN_CONTESTS_REQUIRED) {
-                          handleContest();
-                        } else {
-                          // Toggle contest input visibility
-                          const reason = prompt("Enter contest reason:");
-                          if (reason) {
-                            setContestReason(reason);
-                            // Hacky state update to trigger standard flow
-                            setTimeout(handleContest, 100);
-                          }
-                        }
-                      }}
-                      className="text-[10px] font-black text-rose-400 hover:text-rose-600 uppercase tracking-widest transition-colors"
-                    >
-                      Flag Discrepancy
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+              return (
+                <>
+                  {/* Resolved State — Students can contest */}
+                  {(issue.status === IssueStatus.RESOLVED || issue.status === IssueStatus.REJECTED) && (
+                    <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-100 space-y-3">
+                      {issue.status === IssueStatus.RESOLVED && (
+                        <div className="text-center mb-3">
+                          <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                          </div>
+                          <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">Resolved</p>
+                        </div>
+                      )}
+                      {issue.resolutionEvidenceUrl && (
+                        <a href={issue.resolutionEvidenceUrl} target="_blank" rel="noreferrer" className="block w-full py-2 bg-emerald-600 text-white text-center rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors">
+                          View Evidence
+                        </a>
+                      )}
+
+                      {/* Contested badge */}
+                      {issue.contestedFlag && (
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-rose-50 border border-rose-100">
+                          <span className="text-[10px] font-black text-rose-600 uppercase tracking-wide">⚠ Contested</span>
+                          <span className="text-[10px] font-bold text-rose-500">{issue.contestCount}/3</span>
+                        </div>
+                      )}
+
+                      {/* Student: Contest button */}
+                      {user.role === UserRole.STUDENT && contestWindowOpen && (
+                        <div className="pt-3 border-t border-emerald-200/50 space-y-2">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Contest window: {Math.ceil((new Date(issue.contestWindowEnd!).getTime() - now.getTime()) / 86400000)}d left</p>
+                          <input
+                            type="text"
+                            value={contestReason}
+                            onChange={e => setContestReason(e.target.value)}
+                            placeholder="Reason for contesting..."
+                            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs"
+                          />
+                          <button
+                            onClick={handleContest}
+                            disabled={actionLoading || !contestReason.trim()}
+                            className="w-full py-2.5 bg-rose-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-rose-600 disabled:opacity-50 transition-all"
+                          >
+                            {actionLoading ? 'Processing...' : '⚠ Contest This Resolution'}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Admin: Contest decision buttons */}
+                      {user.role === UserRole.ADMIN && issue.contestedFlag && (
+                        <div className="pt-3 border-t border-emerald-200/50 space-y-2">
+                          <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Contest Decision ({issue.contestCount} contests)</p>
+                          <input
+                            type="text"
+                            value={contestDecisionExplanation}
+                            onChange={e => setContestDecisionExplanation(e.target.value)}
+                            placeholder="Explanation (optional)..."
+                            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleContestDecision('ACCEPT')}
+                              disabled={actionLoading}
+                              className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-amber-600 disabled:opacity-50 transition-all"
+                            >
+                              Accept Contest
+                            </button>
+                            <button
+                              onClick={() => handleContestDecision('REJECT')}
+                              disabled={actionLoading}
+                              className="flex-1 py-2.5 bg-slate-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-700 disabled:opacity-50 transition-all"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* PENDING_REVALIDATION — Admin must re-resolve */}
+                  {issue.status === IssueStatus.PENDING_REVALIDATION && (
+                    <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">⏳ Pending Revalidation</p>
+                        <p className="text-[10px] text-amber-600 mt-1">Auto-escalated after {issue.contestCount} contests</p>
+                      </div>
+                      {user.role === UserRole.ADMIN && (
+                        <div className="space-y-2 pt-2">
+                          <input
+                            type="text"
+                            value={resolutionSummary}
+                            onChange={e => setResolutionSummary(e.target.value)}
+                            placeholder="New resolution summary..."
+                            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs"
+                          />
+                          <input
+                            type="text"
+                            value={resolutionUrl}
+                            onChange={e => setResolutionUrl(e.target.value)}
+                            placeholder="Evidence URL (optional)..."
+                            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs"
+                          />
+                          <button
+                            onClick={handleReResolve}
+                            disabled={actionLoading || !resolutionSummary.trim()}
+                            className="w-full py-3 bg-amber-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-amber-700 disabled:opacity-50 transition-all"
+                          >
+                            {actionLoading ? 'Processing...' : 'Submit Re-Resolution'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* RE_RESOLVED — Students vote */}
+                  {issue.status === IssueStatus.RE_RESOLVED && (
+                    <div className="p-5 rounded-2xl bg-violet-50 border border-violet-200 space-y-3">
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-violet-700 uppercase tracking-wide">🔄 Re-Resolved — Voting Open</p>
+                        {revalWindowOpen && (
+                          <p className="text-[9px] text-violet-500 mt-1">Vote window: {Math.ceil((new Date(issue.revalidationWindowEnd!).getTime() - now.getTime()) / 86400000)}d left</p>
+                        )}
+                      </div>
+                      {issue.resolutionEvidenceUrl && (
+                        <a href={issue.resolutionEvidenceUrl} target="_blank" rel="noreferrer" className="block w-full py-2 bg-violet-600 text-white text-center rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-violet-700 transition-colors">
+                          View Evidence
+                        </a>
+                      )}
+                      {user.role === UserRole.STUDENT && revalWindowOpen && (
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={() => handleVote('confirm')}
+                            disabled={actionLoading}
+                            className="flex-1 py-3 bg-emerald-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-600 disabled:opacity-50 transition-all"
+                          >
+                            ✓ Confirm
+                          </button>
+                          <button
+                            onClick={() => handleVote('reject')}
+                            disabled={actionLoading}
+                            className="flex-1 py-3 bg-rose-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-rose-600 disabled:opacity-50 transition-all"
+                          >
+                            ✗ Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* FINAL_CLOSED */}
+                  {issue.status === IssueStatus.FINAL_CLOSED && (
+                    <div className="text-center p-5 rounded-2xl bg-slate-100 border border-slate-200">
+                      <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">🔒 Permanently Closed</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Confirmed by student votes</p>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {/* Proposals Section */}
             <div className="pt-6 border-t border-slate-100">

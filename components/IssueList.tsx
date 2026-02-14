@@ -84,6 +84,8 @@ const IssueList: React.FC<IssueListProps> = ({ issues, departments }) => {
               <option value={IssueStatus.OPEN}>Active</option>
               <option value={IssueStatus.IN_REVIEW}>Reviewing</option>
               <option value={IssueStatus.CONTESTED}>Contested</option>
+              <option value={IssueStatus.PENDING_REVALIDATION}>Pending Revalidation</option>
+              <option value={IssueStatus.RE_RESOLVED}>Re-Resolved</option>
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -108,10 +110,13 @@ const IssueList: React.FC<IssueListProps> = ({ issues, departments }) => {
               <div className="relative z-10 flex flex-col h-full">
                 <div className="flex justify-between items-start mb-6">
                   <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-[0.15em] border backdrop-blur-md ${issue.status === IssueStatus.PENDING_APPROVAL ? 'bg-amber-50/80 text-amber-600 border-amber-100' :
-                      issue.status === IssueStatus.OPEN ? 'bg-indigo-50/80 text-brand-primary border-indigo-100' :
-                        issue.status === IssueStatus.IN_REVIEW ? 'bg-violet-50/80 text-violet-600 border-violet-100' :
-                          issue.status === IssueStatus.CONTESTED ? 'bg-rose-50/80 text-rose-600 border-rose-100' :
-                            'bg-slate-50/80 text-slate-500 border-slate-100'
+                    issue.status === IssueStatus.OPEN ? 'bg-indigo-50/80 text-brand-primary border-indigo-100' :
+                      issue.status === IssueStatus.IN_REVIEW ? 'bg-violet-50/80 text-violet-600 border-violet-100' :
+                        issue.status === IssueStatus.CONTESTED ? 'bg-rose-50/80 text-rose-600 border-rose-100' :
+                          issue.status === IssueStatus.PENDING_REVALIDATION ? 'bg-amber-50/80 text-amber-700 border-amber-200' :
+                            issue.status === IssueStatus.RE_RESOLVED ? 'bg-violet-50/80 text-violet-600 border-violet-200' :
+                              issue.status === IssueStatus.FINAL_CLOSED ? 'bg-slate-100/80 text-slate-500 border-slate-200' :
+                                'bg-slate-50/80 text-slate-500 border-slate-100'
                     }`}>
                     {statusLabel(issue.status)}
                   </span>
@@ -124,6 +129,9 @@ const IssueList: React.FC<IssueListProps> = ({ issues, departments }) => {
 
                 <h3 className="text-xl font-display font-bold text-slate-900 mb-3 leading-tight group-hover:text-brand-primary transition-colors line-clamp-2">
                   {issue.title}
+                  {issue.contestedFlag && (
+                    <span className="ml-2 inline-block align-middle px-2 py-0.5 bg-rose-100 text-rose-600 border border-rose-200 rounded text-[9px] font-black uppercase tracking-wider">Contested</span>
+                  )}
                 </h3>
 
                 <p className="text-sm text-slate-500 font-medium line-clamp-2 mb-8 flex-grow">

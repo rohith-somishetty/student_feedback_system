@@ -9,7 +9,11 @@ interface ArchiveProps {
 }
 
 const Archive: React.FC<ArchiveProps> = ({ issues, departments }) => {
-    const resolvedIssues = issues.filter(i => i.status === IssueStatus.RESOLVED || i.status === IssueStatus.REJECTED);
+    const archived = issues.filter(i =>
+        i.status === IssueStatus.RESOLVED ||
+        i.status === IssueStatus.REJECTED ||
+        i.status === IssueStatus.FINAL_CLOSED
+    );
 
     return (
         <div className="space-y-10 animate-fadeIn font-outfit">
@@ -19,13 +23,13 @@ const Archive: React.FC<ArchiveProps> = ({ issues, departments }) => {
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Historical Record & Evidence Locker</p>
                 </div>
                 <div className="text-right hidden md:block">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100">{resolvedIssues.length} Records Digitized</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100">{archived.length} Records Digitized</span>
                 </div>
             </header>
 
             <div className="space-y-4">
-                {resolvedIssues.length > 0 ? (
-                    resolvedIssues.map(issue => (
+                {archived.length > 0 ? (
+                    archived.map(issue => (
                         <Link key={issue.id} to={`/issues/${issue.id}`} className="block group">
                             <div className="relative bg-slate-50/50 hover:bg-white rounded-[2rem] p-8 border border-slate-100 hover:border-emerald-200 transition-all shadow-sm hover:shadow-xl hover:-translate-y-0.5 overflow-hidden">
                                 <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-[4rem] transition-colors group-hover:bg-emerald-500/10"></div>

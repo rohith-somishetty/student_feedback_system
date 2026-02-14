@@ -9,7 +9,7 @@ import Dashboard from './components/Dashboard';
 import IssueForm from './components/IssueForm';
 import IssueList from './components/IssueList';
 import IssueDetail from './components/IssueDetail';
-import CredibilityStats from './components/CredibilityStats';
+
 import Profile from './components/Profile';
 import Archive from './components/Archive';
 import Login from './components/Login';
@@ -240,9 +240,29 @@ const App: React.FC = () => {
                       await issuesAPI.reject(id, reason);
                       setIssues(await issuesAPI.getAll());
                     }}
+                    onResolveIssue={async (id: string, summary: string, evidenceUrl?: string) => {
+                      await issuesAPI.resolve(id, summary, evidenceUrl);
+                      setIssues(await issuesAPI.getAll());
+                    }}
+                    onContestIssue={async (id: string, reason: string) => {
+                      await issuesAPI.contest(id, reason);
+                      setIssues(await issuesAPI.getAll());
+                    }}
+                    onContestDecision={async (id: string, decision: 'ACCEPT' | 'REJECT', explanation?: string) => {
+                      await issuesAPI.contestDecision(id, decision, explanation);
+                      setIssues(await issuesAPI.getAll());
+                    }}
+                    onReResolve={async (id: string, summary: string, evidenceUrl?: string) => {
+                      await issuesAPI.reResolve(id, summary, evidenceUrl);
+                      setIssues(await issuesAPI.getAll());
+                    }}
+                    onRevalidationVote={async (id: string, voteType: 'confirm' | 'reject') => {
+                      await issuesAPI.revalidationVote(id, voteType);
+                      setIssues(await issuesAPI.getAll());
+                    }}
                   />
                 } />
-                <Route path="/leaderboard" element={<CredibilityStats users={allUsers} />} />
+
                 <Route path="/archive" element={<Archive issues={issues} departments={departments} />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </>

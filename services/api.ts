@@ -151,6 +151,18 @@ export const issuesAPI = {
             method: 'POST',
             body: { decision, explanation, evidenceUrl } as any,
         }),
+
+    reResolve: (id: string, resolutionSummary: string, evidenceUrl?: string) =>
+        apiRequest(`/issues/${id}/re-resolve`, {
+            method: 'POST',
+            body: { resolutionSummary, evidenceUrl } as any,
+        }),
+
+    revalidationVote: (id: string, voteType: 'confirm' | 'reject') =>
+        apiRequest(`/issues/${id}/revalidation-vote`, {
+            method: 'POST',
+            body: { voteType } as any,
+        }),
 };
 
 // Departments API

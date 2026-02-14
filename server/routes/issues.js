@@ -83,6 +83,9 @@ router.get('/', authenticateToken, async (req, res) => {
             resolutionEvidenceUrl: issue.resolution_evidence_url,
             supportCount: issue.support_count,
             contestCount: issue.contest_count,
+            contestedFlag: issue.contested_flag || false,
+            contestWindowEnd: issue.contest_window_end || null,
+            revalidationWindowEnd: issue.revalidation_window_end || null,
             createdAt: issue.created_at,
             timeline: timelineByIssue[issue.id] || [],
             comments: commentsByIssue[issue.id] || [],
@@ -407,10 +410,19 @@ router.post('/:id/reject', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'Issue is not pending approval' });
         }
 
+        // 7-day contest window for rejected issues
+        const contestEnd = new Date();
+        contestEnd.setDate(contestEnd.getDate() + 7);
+
         // Update status to REJECTED
         const { error } = await supabaseAdmin
             .from('issues')
-            .update({ status: 'REJECTED' })
+            .update({
+                status: 'REJECTED',
+                contest_window_end: contestEnd.toISOString(),
+                contested_flag: false,
+                contest_count: 0
+            })
             .eq('id', id);
 
         if (error) throw error;
@@ -433,10 +445,15 @@ router.post('/:id/reject', authenticateToken, async (req, res) => {
 });
 
 // ==========================================
-// CONTEST LIFECYCLE ROUTES
+// CONTEST & REVALIDATION ROUTES (Prototype)
+// Simple count-based, no credibility math
 // ==========================================
 
-// Resolve issue (start contest window)
+const CONTEST_THRESHOLD = 3;    // Auto-revalidation after this many contests
+const VOTE_THRESHOLD = 3;       // Final decision after this many votes
+const WINDOW_DAYS = 7;          // Contest/revalidation window in days
+
+// Resolve issue (admin → sets RESOLVED + opens 7-day contest window)
 router.post('/:id/resolve', authenticateToken, async (req, res) => {
     try {
         if (req.user.role !== 'ADMIN') {
@@ -451,37 +468,34 @@ router.post('/:id/resolve', authenticateToken, async (req, res) => {
         }
 
         const contestWindowEnd = new Date();
-        contestWindowEnd.setDate(contestWindowEnd.getDate() + 7);
+        contestWindowEnd.setDate(contestWindowEnd.getDate() + WINDOW_DAYS);
 
         const { error } = await supabaseAdmin
             .from('issues')
             .update({
-                status: 'RESOLVED_PENDING_REVIEW',
+                status: 'RESOLVED',
                 resolution_summary: resolutionSummary,
                 resolution_evidence_url: evidenceUrl,
                 contest_window_end: contestWindowEnd.toISOString(),
-                contest_weight: 0
+                contested_flag: false,
+                contest_count: 0
             })
             .eq('id', id);
 
         if (error) throw error;
 
-        // Log
-        await supabaseAdmin.from('audit_logs').insert({
-            action_type: 'ISSUE_RESOLVED',
-            user_id: req.user.id,
-            target_id: id,
-            details: { summary: resolutionSummary }
-        });
+        // Clear any old contests from previous rounds
+        await supabaseAdmin.from('contests').delete().eq('issue_id', id);
 
         // Timeline
         await supabaseAdmin.from('timeline_events').insert({
+            id: 'tl-' + Date.now(),
             issue_id: id,
             type: 'STATUS_CHANGE',
             user_id: req.user.id,
             user_name: 'Admin',
             description: 'Issue resolved. 7-day contest window opened.',
-            metadata: { oldStatus: 'OPEN', newStatus: 'RESOLVED_PENDING_REVIEW', evidenceUrl }
+            metadata: { newStatus: 'RESOLVED', evidenceUrl }
         });
 
         res.json({ message: 'Issue resolved. Contest window opened.' });
@@ -491,7 +505,7 @@ router.post('/:id/resolve', authenticateToken, async (req, res) => {
     }
 });
 
-// Contest issue (Student)
+// Contest issue (Student — simple insert, no credibility math)
 router.post('/:id/contest', authenticateToken, async (req, res) => {
     try {
         if (req.user.role !== 'STUDENT') {
@@ -501,41 +515,86 @@ router.post('/:id/contest', authenticateToken, async (req, res) => {
         const { id } = req.params;
         const { reason } = req.body;
 
-        if (!reason) return res.status(400).json({ error: 'Reason is required' });
+        // Fetch issue
+        const { data: issue, error: fetchErr } = await supabaseAdmin
+            .from('issues')
+            .select('status, contest_window_end, contest_count')
+            .eq('id', id)
+            .single();
 
-        // Call RPC
-        const { data, error } = await supabaseAdmin.rpc('contest_issue', {
-            p_issue_id: id,
-            p_user_id: req.user.id,
-            p_reason: reason,
-            p_stake: 50, // Hardcoded stake for now
-            p_reopen_threshold: 100 // Hardcoded threshold
-        });
+        if (fetchErr || !issue) return res.status(404).json({ error: 'Issue not found' });
 
-        if (error) throw error;
-
-        if (data.error) {
-            return res.status(400).json({ error: data.error });
+        // Validate status
+        if (!['RESOLVED', 'REJECTED'].includes(issue.status)) {
+            return res.status(400).json({ error: 'Issue is not in a contestable state' });
         }
 
-        // Timeline event if successful
+        // Validate window
+        if (issue.contest_window_end && new Date() > new Date(issue.contest_window_end)) {
+            return res.status(400).json({ error: 'Contest window has expired' });
+        }
+
+        // Insert contest (unique constraint prevents duplicates)
+        const { error: insertErr } = await supabaseAdmin.from('contests').insert({
+            issue_id: id,
+            user_id: req.user.id,
+            reason: reason || null
+        });
+
+        if (insertErr) {
+            if (insertErr.code === '23505') {
+                return res.status(400).json({ error: 'You have already contested this issue' });
+            }
+            throw insertErr;
+        }
+
+        // Increment contest_count and set contested_flag
+        const newCount = (issue.contest_count || 0) + 1;
+        const updateData = {
+            contest_count: newCount,
+            contested_flag: true
+        };
+
+        // Auto-revalidation if threshold reached
+        if (newCount >= CONTEST_THRESHOLD) {
+            updateData.status = 'PENDING_REVALIDATION';
+        }
+
+        const { error: updateErr } = await supabaseAdmin
+            .from('issues')
+            .update(updateData)
+            .eq('id', id);
+
+        if (updateErr) throw updateErr;
+
+        // Timeline
         await supabaseAdmin.from('timeline_events').insert({
+            id: 'tl-' + Date.now(),
             issue_id: id,
             type: 'CONTEST',
             user_id: req.user.id,
             user_name: 'Anonymous Student',
-            description: `Contested resolution: ${reason}`,
-            metadata: { status: data.status }
+            description: reason
+                ? `Contested: ${reason}`
+                : 'Issue contested by student',
+            metadata: { contestCount: newCount, threshold: CONTEST_THRESHOLD }
         });
 
-        res.json(data);
+        const autoEscalated = newCount >= CONTEST_THRESHOLD;
+        res.json({
+            message: autoEscalated
+                ? 'Contest threshold reached. Issue sent for revalidation.'
+                : 'Contest submitted successfully.',
+            contestCount: newCount,
+            status: autoEscalated ? 'PENDING_REVALIDATION' : issue.status
+        });
     } catch (error) {
         console.error('Contest error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Contest Decision (Admin)
+// Contest Decision (Admin — accept or reject contest)
 router.post('/:id/contest-decision', authenticateToken, async (req, res) => {
     try {
         if (req.user.role !== 'ADMIN') {
@@ -543,74 +602,232 @@ router.post('/:id/contest-decision', authenticateToken, async (req, res) => {
         }
 
         const { id } = req.params;
-        const { decision, explanation } = req.body; // decision: 'ACCEPT' | 'REJECT'
+        const { decision, explanation, evidenceUrl } = req.body;
 
         if (!['ACCEPT', 'REJECT'].includes(decision)) {
-            return res.status(400).json({ error: 'Invalid decision' });
+            return res.status(400).json({ error: 'Decision must be ACCEPT or REJECT' });
+        }
+
+        // Fetch issue
+        const { data: issue, error: fetchErr } = await supabaseAdmin
+            .from('issues')
+            .select('status, contested_flag')
+            .eq('id', id)
+            .single();
+
+        if (fetchErr || !issue) return res.status(404).json({ error: 'Issue not found' });
+
+        if (!issue.contested_flag) {
+            return res.status(400).json({ error: 'Issue has no active contests' });
         }
 
         if (decision === 'ACCEPT') {
-            // Reopen issue
+            // Move back to OPEN, clear contests
             const { error } = await supabaseAdmin
                 .from('issues')
                 .update({
-                    status: 'REOPENED',
-                    reopen_count: 1 // Increment strictly? Or just set? Logic implies +1
+                    status: 'OPEN',
+                    contested_flag: false,
+                    contest_count: 0
                 })
                 .eq('id', id);
-
             if (error) throw error;
 
-            // Refund logic should be here if manually accepted, but for MVP we assume RPC handled auto-cases. 
-            // Manual accept might need manual refund trigger or just updating status.
-            // For now, just update status.
+            // Clear contest records
+            await supabaseAdmin.from('contests').delete().eq('issue_id', id);
 
             await supabaseAdmin.from('timeline_events').insert({
+                id: 'tl-' + Date.now(),
                 issue_id: id,
                 type: 'STATUS_CHANGE',
                 user_id: req.user.id,
                 user_name: 'Admin',
-                description: 'Contest ACCEPTED. Issue reopened for rework.',
-                metadata: { decision: 'ACCEPT', explanation }
+                description: `Contest ACCEPTED. Issue reopened. ${explanation || ''}`,
+                metadata: { decision: 'ACCEPT', explanation, evidenceUrl }
             });
-
         } else {
-            // Reject Contest -> Back to RESOLVED (or RESOLVED_PENDING_REVIEW? Usually effectively closed or back to resolved state)
-            // If rejected, it stays resolved? Or pending review?
-            // "Return status to resolved_pending_review" or "final close"?
-            // Let's set to PENDING_REVIEW (start window again? No).
-            // Let's set to 'RESOLVED' effectively.
-
-            // Actually, if contest rejected, it implies resolution holds.
-
-            const { error } = await supabaseAdmin
-                .from('issues')
-                .update({ status: 'RESOLVED_PENDING_REVIEW' }) // Or maintain status
-                .eq('id', id);
-
-            if (error) throw error;
-
+            // REJECT — issue stays resolved/rejected, contest window continues
             await supabaseAdmin.from('timeline_events').insert({
+                id: 'tl-' + Date.now(),
                 issue_id: id,
                 type: 'STATUS_CHANGE',
                 user_id: req.user.id,
                 user_name: 'Admin',
-                description: `Contest REJECTED: ${explanation}`,
-                metadata: { decision: 'REJECT', explanation }
+                description: `Contest REJECTED. ${explanation || ''}`,
+                metadata: { decision: 'REJECT', explanation, evidenceUrl }
             });
         }
 
-        await supabaseAdmin.from('audit_logs').insert({
-            action_type: 'CONTEST_DECISION',
-            user_id: req.user.id,
-            target_id: id,
-            details: { decision, explanation }
-        });
-
         res.json({ message: `Contest ${decision.toLowerCase()}ed` });
-
     } catch (error) {
         console.error('Contest decision error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Re-resolve issue (admin — after pending_revalidation, marks RE_RESOLVED + opens vote window)
+router.post('/:id/re-resolve', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Only admins can re-resolve issues' });
+        }
+
+        const { id } = req.params;
+        const { resolutionSummary, evidenceUrl } = req.body;
+
+        // Verify status
+        const { data: issue, error: fetchErr } = await supabaseAdmin
+            .from('issues')
+            .select('status')
+            .eq('id', id)
+            .single();
+
+        if (fetchErr || !issue) return res.status(404).json({ error: 'Issue not found' });
+
+        if (!['PENDING_REVALIDATION', 'OPEN'].includes(issue.status)) {
+            return res.status(400).json({ error: 'Issue cannot be re-resolved in current state' });
+        }
+
+        const revalidationEnd = new Date();
+        revalidationEnd.setDate(revalidationEnd.getDate() + WINDOW_DAYS);
+
+        const { error } = await supabaseAdmin
+            .from('issues')
+            .update({
+                status: 'RE_RESOLVED',
+                resolution_summary: resolutionSummary || null,
+                resolution_evidence_url: evidenceUrl || null,
+                revalidation_window_end: revalidationEnd.toISOString(),
+                contested_flag: false,
+                contest_count: 0
+            })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        // Clear old contests and votes
+        await supabaseAdmin.from('contests').delete().eq('issue_id', id);
+        await supabaseAdmin.from('revalidation_votes').delete().eq('issue_id', id);
+
+        await supabaseAdmin.from('timeline_events').insert({
+            id: 'tl-' + Date.now(),
+            issue_id: id,
+            type: 'STATUS_CHANGE',
+            user_id: req.user.id,
+            user_name: 'Admin',
+            description: 'Issue re-resolved. 7-day voting window opened.',
+            metadata: { newStatus: 'RE_RESOLVED', evidenceUrl }
+        });
+
+        res.json({ message: 'Issue re-resolved. Revalidation voting window opened.' });
+    } catch (error) {
+        console.error('Re-resolve error:', error);
+        res.status(500).json({ error: error.message || 'Internal server error' });
+    }
+});
+
+// Revalidation vote (Student — confirm or reject)
+router.post('/:id/revalidation-vote', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'STUDENT') {
+            return res.status(403).json({ error: 'Only students can vote on revalidation' });
+        }
+
+        const { id } = req.params;
+        const { voteType } = req.body; // 'confirm' or 'reject'
+
+        if (!['confirm', 'reject'].includes(voteType)) {
+            return res.status(400).json({ error: 'Vote must be confirm or reject' });
+        }
+
+        // Fetch issue
+        const { data: issue, error: fetchErr } = await supabaseAdmin
+            .from('issues')
+            .select('status, revalidation_window_end')
+            .eq('id', id)
+            .single();
+
+        if (fetchErr || !issue) return res.status(404).json({ error: 'Issue not found' });
+
+        if (issue.status !== 'RE_RESOLVED') {
+            return res.status(400).json({ error: 'Issue is not in revalidation' });
+        }
+
+        if (issue.revalidation_window_end && new Date() > new Date(issue.revalidation_window_end)) {
+            return res.status(400).json({ error: 'Revalidation window has expired' });
+        }
+
+        // Insert vote (unique constraint prevents duplicates)
+        const { error: insertErr } = await supabaseAdmin.from('revalidation_votes').insert({
+            issue_id: id,
+            user_id: req.user.id,
+            vote_type: voteType
+        });
+
+        if (insertErr) {
+            if (insertErr.code === '23505') {
+                return res.status(400).json({ error: 'You have already voted on this issue' });
+            }
+            throw insertErr;
+        }
+
+        // Count votes
+        const { data: votes } = await supabaseAdmin
+            .from('revalidation_votes')
+            .select('vote_type')
+            .eq('issue_id', id);
+
+        const confirmCount = (votes || []).filter(v => v.vote_type === 'confirm').length;
+        const rejectCount = (votes || []).filter(v => v.vote_type === 'reject').length;
+
+        let newStatus = 'RE_RESOLVED';
+        let statusMessage = 'Vote recorded.';
+
+        if (confirmCount >= VOTE_THRESHOLD) {
+            newStatus = 'FINAL_CLOSED';
+            statusMessage = 'Enough confirmations received. Issue permanently closed.';
+            await supabaseAdmin.from('issues').update({ status: 'FINAL_CLOSED' }).eq('id', id);
+
+            await supabaseAdmin.from('timeline_events').insert({
+                id: 'tl-' + Date.now(),
+                issue_id: id,
+                type: 'STATUS_CHANGE',
+                user_id: req.user.id,
+                user_name: 'System',
+                description: 'Issue permanently closed after student confirmation votes.',
+                metadata: { confirmCount, rejectCount }
+            });
+        } else if (rejectCount >= VOTE_THRESHOLD) {
+            newStatus = 'OPEN';
+            statusMessage = 'Enough rejections received. Issue marked as not solved.';
+            await supabaseAdmin.from('issues').update({
+                status: 'OPEN',
+                contested_flag: false,
+                contest_count: 0
+            }).eq('id', id);
+
+            // Clear votes for next round
+            await supabaseAdmin.from('revalidation_votes').delete().eq('issue_id', id);
+
+            await supabaseAdmin.from('timeline_events').insert({
+                id: 'tl-' + Date.now(),
+                issue_id: id,
+                type: 'STATUS_CHANGE',
+                user_id: req.user.id,
+                user_name: 'System',
+                description: 'Issue reopened after students rejected the re-resolution.',
+                metadata: { confirmCount, rejectCount }
+            });
+        }
+
+        res.json({
+            message: statusMessage,
+            confirmCount,
+            rejectCount,
+            status: newStatus
+        });
+    } catch (error) {
+        console.error('Revalidation vote error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

@@ -17,7 +17,6 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, issues = [] }) => {
     { label: 'Dashboard', path: '/' },
     { label: 'Browse Issues', path: '/issues' },
     { label: 'Archive', path: '/archive' },
-    { label: 'Leaderboard', path: '/leaderboard' },
     { label: 'Settings', path: '/profile' },
   ];
 

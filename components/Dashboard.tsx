@@ -13,10 +13,13 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ issues, user, departments, onApproveIssue, onRejectIssue }) => {
   const pendingIssues = issues.filter(i => i.status === IssueStatus.PENDING_APPROVAL);
+  const contestedIssues = issues.filter(i => i.contestedFlag && (i.status === IssueStatus.RESOLVED || i.status === IssueStatus.REJECTED));
+  const pendingRevalIssues = issues.filter(i => i.status === IssueStatus.PENDING_REVALIDATION || i.status === IssueStatus.RE_RESOLVED);
   const activeIssues = issues.filter(i =>
     i.status !== IssueStatus.PENDING_APPROVAL &&
     i.status !== IssueStatus.REJECTED &&
-    i.status !== IssueStatus.RESOLVED
+    i.status !== IssueStatus.RESOLVED &&
+    i.status !== IssueStatus.FINAL_CLOSED
   );
   const approvedIssues = issues.filter(i => i.status !== IssueStatus.PENDING_APPROVAL && i.status !== IssueStatus.REJECTED);
 
@@ -24,9 +27,10 @@ const Dashboard: React.FC<DashboardProps> = ({ issues, user, departments, onAppr
     total: approvedIssues.length,
     open: approvedIssues.filter(i => i.status === IssueStatus.OPEN).length,
     resolved: approvedIssues.filter(i => i.status === IssueStatus.RESOLVED).length,
-    contested: approvedIssues.filter(i => i.status === IssueStatus.CONTESTED).length,
+    contested: contestedIssues.length,
     inReview: approvedIssues.filter(i => i.status === IssueStatus.IN_REVIEW).length,
     pending: pendingIssues.length,
+    pendingReval: pendingRevalIssues.length,
   };
 
   const topPriority = activeIssues.slice(0, 3);
@@ -168,6 +172,46 @@ const Dashboard: React.FC<DashboardProps> = ({ issues, user, departments, onAppr
                   </button>
                 </div>
               </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Contested Issues Section */}
+      {(contestedIssues.length > 0 || pendingRevalIssues.length > 0) && (
+        <section className="mb-12 animate-in space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-display font-bold text-slate-800">⚠ Contested & Revalidation</h2>
+            <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold border border-amber-200">
+              {contestedIssues.length + pendingRevalIssues.length} Issues
+            </span>
+          </div>
+
+          <div className="grid gap-4">
+            {[...contestedIssues, ...pendingRevalIssues].map(issue => (
+              <Link key={issue.id} to={`/issues/${issue.id}`} className="block group">
+                <div className="glass-card p-6 rounded-2xl border-l-4 border-l-amber-500 hover:border-l-amber-400 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                  <div className="flex-grow space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide ${issue.status === IssueStatus.PENDING_REVALIDATION ? 'bg-amber-100 text-amber-700' :
+                          issue.status === IssueStatus.RE_RESOLVED ? 'bg-violet-100 text-violet-700' :
+                            'bg-rose-100 text-rose-600'
+                        }`}>
+                        {issue.status === IssueStatus.PENDING_REVALIDATION ? 'Pending Revalidation' :
+                          issue.status === IssueStatus.RE_RESOLVED ? 'Re-Resolved (Voting)' :
+                            `Contested (${issue.contestCount}/3)`}
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-xs font-medium text-slate-400">
+                        {issue.category}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 group-hover:text-brand-primary transition-colors">
+                      {issue.title}
+                    </h3>
+                  </div>
+                </div>
+              </Link>
             ))}
           </div>
         </section>
