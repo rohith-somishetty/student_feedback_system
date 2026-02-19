@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:3001/api';
+/// <reference types="vite/client" />
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // Get auth token from localStorage
 const getAuthToken = () => localStorage.getItem('nexus_token');
@@ -85,6 +86,8 @@ export const usersAPI = {
 // Issues API
 export const issuesAPI = {
     getAll: () => apiRequest('/issues'),
+
+    getTopics: () => apiRequest('/issues/topics'),
 
     create: (formData: FormData) => {
         // formData should be FormData if there's a file, otherwise plain object

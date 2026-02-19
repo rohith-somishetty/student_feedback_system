@@ -1,4 +1,4 @@
-const { supabaseAdmin } = require('../database.js');
+const { supabaseAdmin, createUserClient } = require('../database.js');
 
 const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -35,6 +35,9 @@ const authenticateToken = async (req, res, next) => {
             credibility: profile.credibility
         };
         req.accessToken = token;
+
+        // Inject authenticated database client
+        req.db = createUserClient(token);
 
         next();
     } catch (err) {

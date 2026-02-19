@@ -41,59 +41,46 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     };
 
     return (
-        <div className="min-h-screen w-full flex font-outfit">
-            {/* Visual Side (Left) */}
-            <div className="hidden lg:flex w-1/2 bg-slate-900 relative overflow-hidden items-center justify-center p-12">
-                {/* Abstract Background */}
-                <div className="absolute inset-0 z-0">
-                    <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-brand-primary/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 animate-pulse-slow"></div>
-                    <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4"></div>
-                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150"></div>
-                </div>
-
-                <div className="relative z-10 max-w-lg space-y-12">
-                    <div className="space-y-4">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 backdrop-blur-md text-white/80 text-[10px] uppercase tracking-widest font-bold">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            System Operational
-                        </div>
-                        <h1 className="text-7xl font-display font-bold text-white leading-[0.9] tracking-tight">
-                            Voice.<br />
-                            Impact.<br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-indigo-400">Change.</span>
-                        </h1>
-                        <p className="text-lg text-slate-400 font-medium leading-relaxed max-w-sm">
-                            The centralized platform for student feedback, campus integrity, and rapid issue resolution.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-                            <div className="text-3xl font-display font-bold text-white mb-1">98%</div>
-                            <div className="text-xs text-slate-400 uppercase tracking-widest font-bold">Resolution Rate</div>
-                        </div>
-                        <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-                            <div className="text-3xl font-display font-bold text-emerald-400 mb-1">24h</div>
-                            <div className="text-xs text-slate-400 uppercase tracking-widest font-bold">Avg Response</div>
-                        </div>
-                    </div>
-                </div>
+        <div className="min-h-screen w-full flex font-outfit relative overflow-hidden">
+            {/* Global Background Image and Overlay */}
+            <div
+                className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat bg-fixed"
+                style={{
+                    backgroundImage: "url('/abstract-waves.jpg')",
+                }}
+            >
+                <div className="absolute inset-0 bg-black/45" />
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 pointer-events-none"></div>
             </div>
 
-            {/* Form Side (Right) */}
-            <div className="w-full lg:w-1/2 bg-white flex items-center justify-center p-8 relative">
-                <div className="w-full max-w-md space-y-8 animate-fadeIn">
-                    <div className="text-center space-y-2">
-                        <h2 className="text-3xl font-display font-bold text-slate-900">Welcome Back</h2>
-                        <p className="text-slate-500 text-sm">Sign in to access your dashboard</p>
+            <div className="relative z-10 w-full flex min-h-screen items-center justify-center p-6">
+                <div className="w-full max-w-[440px] bg-[#0F172A]/60 backdrop-blur-[24px] p-10 rounded-2xl border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.7)] animate-fadeIn space-y-8">
+                    <div className="flex flex-col items-center text-center space-y-5">
+                        <div className="w-16 h-16 rounded-2xl bg-white/5 p-3 shadow-2xl overflow-hidden border border-white/10 backdrop-blur-md">
+                            <img src="/logo.png" alt="Nexus Logo" className="w-full h-full object-contain opacity-90 transition-opacity" />
+                        </div>
+                        <div className="space-y-2">
+                            <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-[#94A3B8] text-[9px] font-black uppercase tracking-[0.25em] mb-1">
+                                Authorization Layer
+                            </div>
+                            <h2 className="text-3xl font-display font-bold text-[#E5E7EB] leading-tight tracking-tight drop-shadow-sm">
+                                <span className="flex items-center justify-center">
+                                    Welcome to <span className="ml-3 font-black tracking-[0.05em] uppercase text-[#14B8A6] drop-shadow-[0_0_8px_rgba(20,184,166,0.5)]">Nexus</span>
+                                    <span className="w-2 h-2 rounded-full bg-[#14B8A6] ml-2 shadow-[0_0_12px_rgba(20,184,166,0.6)]"></span>
+                                </span>
+                            </h2>
+                        </div>
                     </div>
 
-                    <div className="flex p-1 bg-slate-50 rounded-xl mb-8 border border-slate-100">
+                    <div className="flex p-1 bg-white/5 rounded-xl mb-8 border border-white/5">
                         {(['student', 'admin'] as const).map((role) => (
                             <button
                                 key={role}
                                 onClick={() => handleDemoClick(role)}
-                                className={`flex-1 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeTab === role ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`flex-1 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeTab === role
+                                    ? 'bg-[#14B8A6] text-[#FFFFFF] shadow-[0_0_15px_rgba(20,184,166,0.25)]'
+                                    : 'text-[#94A3B8] hover:text-[#E5E7EB] hover:bg-white/5'
+                                    }`}
                             >
                                 {role}
                             </button>
@@ -110,23 +97,23 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Email</label>
+                                <label className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.15em] ml-1">Email</label>
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full px-5 py-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all"
+                                    className="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-[#E5E7EB] font-bold focus:outline-none focus:ring-4 focus:ring-[#14B8A6]/20 focus:border-[#14B8A6] transition-all placeholder:text-[#475569] shadow-inner"
                                     placeholder="name@university.edu"
                                     required
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Password</label>
+                                <label className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.15em] ml-1">Password</label>
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full px-5 py-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all"
+                                    className="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-[#E5E7EB] font-bold focus:outline-none focus:ring-4 focus:ring-[#14B8A6]/20 focus:border-[#14B8A6] transition-all placeholder:text-[#475569] shadow-inner"
                                     placeholder="••••••••"
                                     required
                                 />
@@ -136,14 +123,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-brand-primary hover:shadow-lg hover:shadow-brand-primary/25 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full py-4 bg-[#14B8A6] text-white rounded-full font-bold uppercase tracking-widest text-xs btn-elevate shadow-btn-teal active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? 'Authenticating...' : 'Sign In'}
                         </button>
                     </form>
 
-                    <p className="text-center text-[10px] text-slate-400 uppercase tracking-widest font-bold">
-                        Secure Authentication System v2.0
+                    <p className="text-center text-[10px] text-[#475569] uppercase tracking-[0.2em] font-black">
+                        Nexus Security Protocols v3.2
                     </p>
                 </div>
             </div>

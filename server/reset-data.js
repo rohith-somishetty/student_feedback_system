@@ -4,7 +4,10 @@
  */
 const { createClient } = require('@supabase/supabase-js');
 const dotenv = require('dotenv');
-dotenv.config();
+const path = require('path');
+
+// Load .env from the same directory as the script
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const supabaseAdmin = createClient(
     process.env.SUPABASE_URL,
@@ -41,11 +44,11 @@ async function resetData() {
         }
     }
 
-    // Reset department performance scores to default (e.g., 75)
+    // Reset department performance scores to default (e.g., 100)
     console.log('\n📊 Resetting department performance scores...');
     const { error: deptError } = await supabaseAdmin
         .from('departments')
-        .update({ performance_score: 75 })
+        .update({ performance_score: 100 })
         .gte('id', '');  // match all rows
 
     if (deptError) {
@@ -55,16 +58,16 @@ async function resetData() {
             const ids = depts.map(d => d.id);
             const { error: err2 } = await supabaseAdmin
                 .from('departments')
-                .update({ performance_score: 75 })
+                .update({ performance_score: 100 })
                 .in('id', ids);
             if (err2) {
                 console.log(`  ⚠️  departments: ${err2.message}`);
             } else {
-                console.log(`  ✅ ${depts.length} department(s) reset to score 75`);
+                console.log(`  ✅ ${depts.length} department(s) reset to score 100`);
             }
         }
     } else {
-        console.log('  ✅ Department performance scores reset to 75');
+        console.log('  ✅ Department performance scores reset to 100');
     }
 
     console.log('\n✅ Done! All reports cleared and department performance reset.');

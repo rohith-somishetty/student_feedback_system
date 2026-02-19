@@ -1,28 +1,41 @@
 @layer base {
   :root {
-    --brand-primary: 79 70 229;
-    /* Indigo 600 */
-    --brand-secondary: 16 185 129;
-    /* Emerald 500 */
-    --brand-accent: 244 63 94;
-    /* Rose 500 */
+    --brand-primary: 13 148 136;
+    /* Teal 600 */
+    --brand-secondary: 59 130 246;
+    /* Blue 500 */
+    --brand-accent: 13 148 136;
+    /* Teal 600 */
+    --brand-navy: 47 58 74;
+    /* Slate Dark #2F3A4A */
 
-    /* Premium Glass Vars */
-    --glass-bg: rgba(255, 255, 255, 0.65);
-    --glass-border: rgba(255, 255, 255, 0.4);
-    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+    /* SaaS Dashboard Vars */
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(226, 232, 240, 0.5);
+    /* Slate 200 */
+    --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+
+    /* ─── Motion Tokens ─── */
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+    --duration-fast: 150ms;
+    --duration-base: 250ms;
+    --duration-slow: 400ms;
+    --duration-entrance: 500ms;
   }
 }
 
 body {
   background-color: #f8fafc;
   font-family: 'Inter', sans-serif;
-  color: #0f172a;
-  /* Subtle mesh gradient background */
+  color: #1e293b;
+  /* More subtle background gradients */
   background-image:
-    radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(244, 63, 94, 0.05) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, rgba(13, 148, 136, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.03) 0px, transparent 50%);
   background-attachment: fixed;
   background-size: cover;
 }
@@ -36,54 +49,150 @@ h5,
 h6 {
   font-family: 'Plus Jakarta Sans', sans-serif;
   letter-spacing: -0.025em;
+  color: #0f172a;
 }
 
-/* Glassmorphism 2.0 */
+/* ═══════════════════════════════════════════════════
+   1. GLASSMORPHISM CARDS
+   ─── Rationale: Cards are the primary data containers.
+   Hover feedback signals interactivity and reveals
+   depth in the card hierarchy.
+   ─── Duration: 250ms — fast enough to feel instant,
+   slow enough to track.
+   ═══════════════════════════════════════════════════ */
 .glass-morphism {
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition:
+    transform var(--duration-base) var(--ease-spring),
+    box-shadow var(--duration-base) var(--ease-smooth),
+    border-color var(--duration-base) var(--ease-in-out);
 }
 
 .glass-card:hover {
-  background: rgba(255, 255, 255, 0.45);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-  border-color: rgba(79, 70, 229, 0.4);
+  background: #ffffff;
+  transform: translateY(-3px);
+  box-shadow:
+    0 12px 24px -4px rgba(0, 0, 0, 0.06),
+    0 4px 8px -2px rgba(0, 0, 0, 0.03);
+  border-color: rgba(13, 148, 136, 0.2);
 }
 
 /* Gradient Text */
 .text-gradient {
-  background: linear-gradient(135deg, #4f46e5, #0ea5e9);
+  background: linear-gradient(135deg, #0d9488, #3b82f6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .premium-gradient-primary {
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  background: linear-gradient(135deg, #0d9488, #0f766e);
 }
 
-/* Animations */
+
+/* ═══════════════════════════════════════════════════
+   2. BUTTON INTERACTIONS
+   ─── Rationale: Buttons are the primary call to
+   action. Hover elevation creates "liftoff" affordance,
+   active press gives tactile confirmation.
+   ─── Duration: 200ms hover, 100ms press — instant click
+   ═══════════════════════════════════════════════════ */
+.btn-elevate {
+  transition:
+    transform var(--duration-base) var(--ease-spring),
+    box-shadow var(--duration-base) var(--ease-smooth),
+    background-color var(--duration-fast) var(--ease-in-out);
+}
+
+.btn-elevate:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 20px -4px rgba(20, 184, 166, 0.35),
+    0 4px 8px -2px rgba(20, 184, 166, 0.15);
+}
+
+.btn-elevate:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 2px 8px -2px rgba(20, 184, 166, 0.3);
+  transition-duration: 100ms;
+}
+
+/* Secondary/ghost button hover */
+.btn-ghost {
+  transition:
+    background-color var(--duration-fast) var(--ease-in-out),
+    color var(--duration-fast) var(--ease-in-out);
+}
+
+.btn-ghost:hover {
+  background-color: rgba(20, 184, 166, 0.08);
+}
+
+
+/* ═══════════════════════════════════════════════════
+   3. CARD HOVER FEEDBACK
+   ─── Rationale: Issue cards in the feed are links.
+   A vertical lift with subtle border color change
+   tells users the card is interactive without
+   overwhelming the layout.
+   ─── Duration: 300ms — slightly slower for larger
+   elements to feel weighted and physical.
+   ═══════════════════════════════════════════════════ */
+.interaction-lift {
+  transition:
+    transform 300ms var(--ease-spring),
+    box-shadow 300ms var(--ease-smooth),
+    border-color 300ms var(--ease-in-out);
+}
+
+.interaction-lift:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.07),
+    0 0 0 1px rgba(20, 184, 166, 0.08);
+}
+
+/* Profile Card — Larger lift for hero elements */
+.profile-card-hover {
+  transition:
+    transform var(--duration-slow) var(--ease-spring),
+    box-shadow var(--duration-slow) var(--ease-smooth);
+}
+
+.profile-card-hover:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow:
+    0 30px 60px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(20, 184, 166, 0.1);
+}
+
+
+/* ═══════════════════════════════════════════════════
+   4. PAGE TRANSITIONS
+   ─── Rationale: Content fading up on entry creates
+   a sense of direction and progression. It prevents
+   the jarring "flash" of unstyled content.
+   ─── Duration: 500ms — gives the eye time to settle
+   without feeling sluggish.
+   ═══════════════════════════════════════════════════ */
 .animate-in {
-  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideUp 0.5s var(--ease-smooth);
 }
 
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(16px);
   }
 
   to {
@@ -92,7 +201,319 @@ h6 {
   }
 }
 
-/* Scrollbar */
+/* Page-level entrance — staggered cascade */
+.page-enter {
+  animation: pageEnter var(--duration-entrance) var(--ease-smooth) both;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger delay utilities */
+.stagger-1 {
+  animation-delay: 50ms;
+}
+
+.stagger-2 {
+  animation-delay: 100ms;
+}
+
+.stagger-3 {
+  animation-delay: 150ms;
+}
+
+.stagger-4 {
+  animation-delay: 200ms;
+}
+
+.stagger-5 {
+  animation-delay: 250ms;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   5. TRUST SCORE PROGRESS ANIMATION
+   ─── Rationale: Animating from 0 → value on mount
+   draws attention to the metric and communicates
+   its dynamic nature (it can change).
+   Handled via SVG stroke-dashoffset in component,
+   but the counter text uses this CSS counter-up.
+   ═══════════════════════════════════════════════════ */
+.trust-ring-enter {
+  animation: trustRingPop 0.6s var(--ease-spring) both;
+  animation-delay: 300ms;
+}
+
+@keyframes trustRingPop {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Score value counter shimmer */
+.score-shimmer {
+  background: linear-gradient(90deg,
+      #0F172A 40%,
+      #14B8A6 50%,
+      #0F172A 60%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 2s ease-in-out forwards;
+  animation-delay: 1s;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════
+   6. REPORT SUBMISSION SUCCESS
+   ─── Rationale: A celebratory moment reinforces
+   positive behavior (submitting reports).
+   Scale-up + checkmark confirms the action completed.
+   ─── Duration: 600ms with overshoot easing
+   ═══════════════════════════════════════════════════ */
+.submission-success-enter {
+  animation: successPop 0.6s var(--ease-spring) both;
+}
+
+@keyframes successPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Checkmark draw animation */
+.checkmark-draw {
+  stroke-dasharray: 50;
+  stroke-dashoffset: 50;
+  animation: drawCheck 0.5s var(--ease-smooth) 0.3s forwards;
+}
+
+@keyframes drawCheck {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Success ripple */
+.success-ripple {
+  position: relative;
+}
+
+.success-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid rgba(16, 185, 129, 0.4);
+  animation: rippleOut 1s var(--ease-smooth) forwards;
+}
+
+@keyframes rippleOut {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+
+/* Profile message entrance */
+.profile-message-enter {
+  animation: messageSlideIn var(--duration-slow) var(--ease-smooth);
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════
+   7. NOTIFICATION DROPDOWN
+   ─── Rationale: Dropdowns should feel like they
+   unfold from their trigger. Scale-from-top + fade
+   creates spatial connection to the bell icon.
+   ─── Duration: 200ms in, 150ms out — entering is
+   slightly slower to let users scan content.
+   ═══════════════════════════════════════════════════ */
+.dropdown-enter {
+  animation: dropdownIn 200ms var(--ease-smooth) both;
+  transform-origin: top right;
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Individual notification items stagger */
+.dropdown-item {
+  transition:
+    background-color var(--duration-fast) var(--ease-in-out),
+    transform var(--duration-fast) var(--ease-in-out);
+}
+
+.dropdown-item:hover {
+  transform: translateX(2px);
+}
+
+.dropdown-item:active {
+  transform: scale(0.98);
+}
+
+
+/* ═══════════════════════════════════════════════════
+   8. SKELETON LOADING
+   ─── Rationale: Pulse animation on skeletons
+   communicates "loading" without a spinner.
+   Slow, gentle pulse avoids visual anxiety.
+   ─── Duration: 2s cycle — slow enough to not
+   feel frantic.
+   ═══════════════════════════════════════════════════ */
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s var(--ease-in-out) infinite;
+}
+
+/* Skeleton shimmer (alternative to pulse) */
+.skeleton-shimmer {
+  background: linear-gradient(90deg,
+      rgba(241, 245, 249, 0) 0%,
+      rgba(241, 245, 249, 0.6) 50%,
+      rgba(241, 245, 249, 0) 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s var(--ease-in-out) infinite;
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════
+   9. UTILITY STATES
+   ═══════════════════════════════════════════════════ */
+.button-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(1);
+}
+
+/* Focus ring — accessibility */
+.focus-ring {
+  transition: box-shadow var(--duration-fast) var(--ease-in-out);
+}
+
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px #ffffff,
+    0 0 0 4px rgba(20, 184, 166, 0.5);
+}
+
+/* Nav link active indicator pill */
+.nav-pill-active {
+  transition: all 300ms var(--ease-spring);
+}
+
+
+/* ═══════════════════════════════════════════════════
+   10. TOOLTIP
+   ─── Rationale: Tooltips provide context on hover
+   without cluttering the UI. Fade-scale entrance
+   feels intentional.
+   ═══════════════════════════════════════════════════ */
+.tooltip-enter {
+  animation: tooltipIn 150ms var(--ease-smooth) both;
+}
+
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════════════════ */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -102,10 +523,40 @@ h6 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(79, 70, 229, 0.2);
+  background: rgba(20, 184, 166, 0.15);
   border-radius: 10px;
+  transition: background 200ms;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(79, 70, 229, 0.4);
+  background: rgba(20, 184, 166, 0.3);
+}
+
+
+/* ═══════════════════════════════════════════════════
+   11. REDUCED MOTION — ACCESSIBILITY
+   ─── Rationale: Users who set prefers-reduced-motion
+   in their OS settings should not be subjected to
+   animations. We disable ALL transforms and
+   transitions, keeping only opacity changes (which
+   are considered safe for vestibular disorder).
+   ═══════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .interaction-lift:hover,
+  .profile-card-hover:hover,
+  .glass-card:hover,
+  .btn-elevate:hover,
+  .btn-elevate:active {
+    transform: none !important;
+  }
 }

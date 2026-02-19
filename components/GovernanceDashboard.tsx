@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { Issue, Department, IssueCategory, IssueStatus } from '../types';
 import { calculateSystemMetrics, calculateDepartmentMetrics } from '../utils/metrics';
+import { issuesAPI } from '../services/api';
 
 interface GovernanceDashboardProps {
     issues: Issue[];
@@ -8,6 +9,20 @@ interface GovernanceDashboardProps {
 }
 
 const GovernanceDashboard: React.FC<GovernanceDashboardProps> = ({ issues, departments }) => {
+    const [topics, setTopics] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchTopics = async () => {
+            try {
+                const data = await issuesAPI.getTopics();
+                setTopics(data);
+            } catch (err) {
+                console.error('Failed to fetch topics:', err);
+            }
+        };
+        fetchTopics();
+    }, []);
+
     const systemMetrics = useMemo(() => calculateSystemMetrics(issues), [issues]);
 
     const departmentMetrics = useMemo(() =>
@@ -61,8 +76,8 @@ const GovernanceDashboard: React.FC<GovernanceDashboardProps> = ({ issues, depar
     return (
         <div className="space-y-8 animate-fadeIn">
             <header>
-                <h1 className="text-4xl font-black text-slate-900 tracking-tight">Governance Dashboard</h1>
-                <p className="text-slate-500 font-medium">Leadership Analytics & Institutional Performance Overview</p>
+                <h1 className="text-4xl font-black text-slate-900 tracking-tight">Leadership Hub</h1>
+                <p className="text-slate-500 font-medium">Resolution Insights & Community Performance Overview</p>
             </header>
 
             {/* System-Wide Metrics */}
@@ -98,7 +113,7 @@ const GovernanceDashboard: React.FC<GovernanceDashboardProps> = ({ issues, depar
                                 </div>
                                 <div className="text-right">
                                     <div className={`text-3xl font-black ${metrics.performanceScore >= 85 ? 'text-green-600' :
-                                            metrics.performanceScore >= 70 ? 'text-amber-600' : 'text-red-600'
+                                        metrics.performanceScore >= 70 ? 'text-amber-600' : 'text-red-600'
                                         }`}>
                                         {metrics.performanceScore}
                                     </div>
@@ -154,32 +169,44 @@ const GovernanceDashboard: React.FC<GovernanceDashboardProps> = ({ issues, depar
                 </div>
             </div>
 
-            {/* Recurring Systemic Issues */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
-                <h2 className="text-xl font-black text-slate-900 mb-6 uppercase tracking-tight">Recurring Systemic Issues</h2>
-                {recurringIssues.length > 0 ? (
-                    <div className="space-y-3">
-                        {recurringIssues.map((issue, idx) => (
-                            <div key={idx} className="p-4 bg-red-50 rounded-xl border border-red-100">
-                                <div className="flex justify-between items-center">
+            {/* Emerging Trends (Topic Discovery) */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4">
+                    <span className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[9px] font-black uppercase tracking-widest border border-indigo-100">AI Enabled</span>
+                </div>
+                <h2 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Emerging Needs</h2>
+                <p className="text-xs text-slate-500 font-medium mb-6 uppercase tracking-widest">Discovered recurring patterns in student feedback texts</p>
+
+                {topics.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {topics.map((topic, idx) => (
+                            <div key={idx} className="p-5 bg-indigo-50/30 rounded-2xl border border-indigo-100 hover:border-indigo-300 transition-colors group">
+                                <div className="flex justify-between items-start">
                                     <div className="flex-grow">
-                                        <h3 className="text-sm font-black text-slate-900">"{issue.pattern}..."</h3>
-                                        <div className="text-xs font-bold text-slate-500 mt-1">
-                                            Category: <span className="text-indigo-600">{issue.category}</span>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                                            <h3 className="text-sm font-black text-slate-900 capitalize group-hover:text-indigo-600 transition-colors">"{topic.phrase}"</h3>
+                                        </div>
+                                        <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+                                            Example: {topic.sampleIssue}
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className="text-2xl font-black text-red-600">{issue.count}x</div>
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase">Occurrences</div>
+                                    <div className="text-right ml-4">
+                                        <div className="text-2xl font-black text-indigo-600 leading-none">{topic.frequency}x</div>
+                                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mt-1">Signals</div>
                                     </div>
                                 </div>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center py-8 text-slate-400">
-                        <p className="font-bold">No Recurring Patterns Detected</p>
-                        <p className="text-xs">System showing healthy issue diversity</p>
+                    <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <div className="mb-4 inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-300 animate-pulse">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                        </div>
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-500">Observing campus signals...</p>
+                        <p className="text-[10px] mt-2 font-medium">Trends and common themes emerge automatically as more reports are shared.</p>
                     </div>
                 )}
             </div>

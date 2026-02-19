@@ -5,14 +5,14 @@
 -- ============================================
 
 -- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================
 -- 1. DEPARTMENTS TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS departments (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
   performance_score INTEGER DEFAULT 85,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   email TEXT UNIQUE NOT NULL,
   role TEXT NOT NULL DEFAULT 'STUDENT' CHECK (role IN ('STUDENT', 'ADMIN')),
   credibility INTEGER DEFAULT 50 CHECK (credibility >= 0 AND credibility <= 100),
-  department_id TEXT REFERENCES departments(id),
+  department_id UUID REFERENCES departments(id),
   roll_number TEXT,
   admin_id TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -37,21 +37,25 @@ CREATE TABLE IF NOT EXISTS profiles (
 -- 3. ISSUES TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS issues (
-  id TEXT PRIMARY KEY DEFAULT 'iss-' || substr(md5(random()::text), 1, 8),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT NOT NULL,
   category TEXT NOT NULL CHECK (category IN ('ACADEMICS', 'HOSTEL', 'INFRASTRUCTURE', 'HARASSMENT', 'ADMINISTRATION', 'OTHER')),
   creator_id UUID NOT NULL REFERENCES profiles(id),
-  department_id TEXT NOT NULL REFERENCES departments(id),
-  status TEXT NOT NULL DEFAULT 'PENDING_APPROVAL' CHECK (status IN ('PENDING_APPROVAL', 'OPEN', 'IN_REVIEW', 'RESOLVED', 'CONTESTED', 'REOPENED', 'REJECTED')),
+  department_id UUID NOT NULL REFERENCES departments(id),
+  status TEXT NOT NULL DEFAULT 'PENDING_APPROVAL' CHECK (status IN ('PENDING_APPROVAL', 'OPEN', 'IN_REVIEW', 'RESOLVED', 'CONTESTED', 'REOPENED', 'REJECTED', 'PENDING_REVALIDATION', 'RE_RESOLVED', 'FINAL_CLOSED')),
   urgency INTEGER NOT NULL CHECK (urgency IN (1, 2, 3, 5)),
   deadline TIMESTAMPTZ NOT NULL,
   priority_score REAL DEFAULT 0,
   priority_index REAL DEFAULT 0,
   evidence_url TEXT,
   resolution_evidence_url TEXT,
+  resolution_summary TEXT,
   support_count INTEGER DEFAULT 0,
   contest_count INTEGER DEFAULT 0,
+  contested_flag BOOLEAN DEFAULT FALSE,
+  contest_window_end TIMESTAMPTZ,
+  revalidation_window_end TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -60,9 +64,9 @@ CREATE TABLE IF NOT EXISTS issues (
 -- 4. TIMELINE EVENTS TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS timeline_events (
-  id TEXT PRIMARY KEY DEFAULT 'tl-' || substr(md5(random()::text), 1, 8),
-  issue_id TEXT NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('CREATED', 'STATUS_CHANGE', 'EVIDENCE_UPLOAD', 'CONTEST', 'ADMIN_UPDATE', 'SUPPORT', 'APPROVED', 'REJECTED')),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
   user_id UUID NOT NULL REFERENCES profiles(id),
   user_name TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -71,11 +75,11 @@ CREATE TABLE IF NOT EXISTS timeline_events (
 );
 
 -- ============================================
--- 5. SUPPORTS TABLE (endorsements)
+-- 5. SUPPORTS TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS supports (
   user_id UUID NOT NULL REFERENCES profiles(id),
-  issue_id TEXT NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+  issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (user_id, issue_id)
 );
@@ -84,8 +88,8 @@ CREATE TABLE IF NOT EXISTS supports (
 -- 6. COMMENTS TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS comments (
-  id TEXT PRIMARY KEY DEFAULT 'cmt-' || substr(md5(random()::text), 1, 8),
-  issue_id TEXT NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES profiles(id),
   user_name TEXT NOT NULL,
   text TEXT NOT NULL,
@@ -96,8 +100,8 @@ CREATE TABLE IF NOT EXISTS comments (
 -- 7. PROPOSALS TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS proposals (
-  id TEXT PRIMARY KEY DEFAULT 'prp-' || substr(md5(random()::text), 1, 8),
-  issue_id TEXT NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES profiles(id),
   user_name TEXT NOT NULL,
   text TEXT NOT NULL,
@@ -106,17 +110,27 @@ CREATE TABLE IF NOT EXISTS proposals (
 );
 
 -- ============================================
--- 8. FILE UPLOADS TABLE
+-- 8. CONTESTS TABLE
 -- ============================================
-CREATE TABLE IF NOT EXISTS file_uploads (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  issue_id TEXT REFERENCES issues(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES profiles(id),
-  file_name TEXT NOT NULL,
-  file_path TEXT NOT NULL,
-  file_type TEXT NOT NULL,
-  file_size INTEGER NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS contests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    issue_id UUID REFERENCES issues(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(issue_id, user_id)
+);
+
+-- ============================================
+-- 9. REVALIDATION VOTES TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS revalidation_votes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    issue_id UUID REFERENCES issues(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    vote_type TEXT CHECK (vote_type IN ('confirm', 'reject')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(issue_id, user_id)
 );
 
 -- ============================================
@@ -126,151 +140,79 @@ CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status);
 CREATE INDEX IF NOT EXISTS idx_issues_department ON issues(department_id);
 CREATE INDEX IF NOT EXISTS idx_issues_creator ON issues(creator_id);
 CREATE INDEX IF NOT EXISTS idx_issues_priority ON issues(priority_score DESC);
-CREATE INDEX IF NOT EXISTS idx_timeline_issue ON timeline_events(issue_id);
-CREATE INDEX IF NOT EXISTS idx_comments_issue ON comments(issue_id);
-CREATE INDEX IF NOT EXISTS idx_supports_issue ON supports(issue_id);
-
--- ============================================
--- AUTO-UPDATE TIMESTAMP TRIGGER
--- ============================================
-CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER issues_updated_at
-  BEFORE UPDATE ON issues
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
-CREATE TRIGGER profiles_updated_at
-  BEFORE UPDATE ON profiles
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================
 
--- Enable RLS on all tables
+-- Enable RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE issues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE timeline_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE proposals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE file_uploads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE departments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE revalidation_votes ENABLE ROW LEVEL SECURITY;
 
--- Profiles: users can read all, update own
-CREATE POLICY "Profiles are viewable by authenticated users"
-  ON profiles FOR SELECT
-  TO authenticated
-  USING (true);
+-- 1. Profiles
+CREATE POLICY "Public profiles are viewable by everyone" ON profiles FOR SELECT USING (true);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
-CREATE POLICY "Users can update own profile"
-  ON profiles FOR UPDATE
-  TO authenticated
-  USING (auth.uid() = id);
+-- 2. Issues
+CREATE POLICY "Issues are viewable by authenticated users" ON issues FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Students can create issues" ON issues FOR INSERT TO authenticated WITH CHECK (auth.uid() = creator_id);
+CREATE POLICY "Admins can update all issues" ON issues FOR UPDATE TO authenticated USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN')
+);
+CREATE POLICY "Creators can update own pending issues" ON issues FOR UPDATE TO authenticated USING (
+    auth.uid() = creator_id AND status = 'PENDING_APPROVAL'
+);
 
--- Issues: all authenticated can read, students can create
-CREATE POLICY "Issues are viewable by authenticated users"
-  ON issues FOR SELECT
-  TO authenticated
-  USING (true);
+-- 3. Timeline
+CREATE POLICY "Timeline is viewable by all" ON timeline_events FOR SELECT USING (true);
+CREATE POLICY "System/Authenticated can insert timeline" ON timeline_events FOR INSERT TO authenticated WITH CHECK (true);
 
-CREATE POLICY "Authenticated users can create issues"
-  ON issues FOR INSERT
-  TO authenticated
-  WITH CHECK (true);
+-- 4. Supports
+CREATE POLICY "Supports are viewable by all" ON supports FOR SELECT USING (true);
+CREATE POLICY "Users can support once" ON supports FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Authenticated users can update issues"
-  ON issues FOR UPDATE
-  TO authenticated
-  USING (true);
+-- 5. Comments
+CREATE POLICY "Comments are viewable by all" ON comments FOR SELECT USING (true);
+CREATE POLICY "Users can comment" ON comments FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
--- Timeline: all authenticated can read & insert
-CREATE POLICY "Timeline viewable by authenticated users"
-  ON timeline_events FOR SELECT
-  TO authenticated
-  USING (true);
+-- 6. Contests
+CREATE POLICY "Contests are viewable by all" ON contests FOR SELECT USING (true);
+CREATE POLICY "Students can contest" ON contests FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Authenticated users can add timeline events"
-  ON timeline_events FOR INSERT
-  TO authenticated
-  WITH CHECK (true);
+-- 7. Revalidation Votes
+CREATE POLICY "Votes are viewable by all" ON revalidation_votes FOR SELECT USING (true);
+CREATE POLICY "Students can vote" ON revalidation_votes FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
--- Supports: all authenticated can read & insert
-CREATE POLICY "Supports viewable by authenticated users"
-  ON supports FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Authenticated users can add supports"
-  ON supports FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = user_id);
-
--- Comments: all authenticated can read & insert
-CREATE POLICY "Comments viewable by authenticated users"
-  ON comments FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Authenticated users can add comments"
-  ON comments FOR INSERT
-  TO authenticated
-  WITH CHECK (true);
-
--- Proposals: all authenticated can read & insert
-CREATE POLICY "Proposals viewable by authenticated users"
-  ON proposals FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Authenticated users can add proposals"
-  ON proposals FOR INSERT
-  TO authenticated
-  WITH CHECK (true);
-
--- File uploads: all authenticated can read & insert
-CREATE POLICY "File uploads viewable by authenticated users"
-  ON file_uploads FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Authenticated users can upload files"
-  ON file_uploads FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = user_id);
-
--- Departments: all authenticated can read
-CREATE POLICY "Departments viewable by authenticated users"
-  ON departments FOR SELECT
-  TO authenticated
-  USING (true);
+-- 8. Departments
+CREATE POLICY "Departments are viewable by all" ON departments FOR SELECT USING (true);
 
 -- ============================================
 -- SEED DATA
 -- ============================================
 
 -- Seed departments
-INSERT INTO departments (id, name, performance_score) VALUES
-  ('dept-1', 'Academic Affairs', 88),
-  ('dept-2', 'Student Welfare', 92),
-  ('dept-3', 'Infrastructure & Facilities', 75),
-  ('dept-4', 'Health Services', 81),
-  ('dept-5', 'Disciplinary Committee', 95),
-  ('dept-6', 'General Administration', 85)
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO departments (name, performance_score) VALUES
+  ('Academic Affairs', 88),
+  ('Student Welfare', 92),
+  ('Infrastructure & Facilities', 75),
+  ('Health Services', 81),
+  ('Disciplinary Committee', 95),
+  ('General Administration', 85)
+ON CONFLICT (name) DO NOTHING;
 
 -- ============================================
 -- RPC FUNCTIONS
 -- ============================================
 
 -- Atomic function to support an issue and recalculate priority
-CREATE OR REPLACE FUNCTION support_issue(p_issue_id TEXT, p_user_id UUID)
+CREATE OR REPLACE FUNCTION support_issue(p_issue_id UUID, p_user_id UUID)
 RETURNS JSON AS $$
 DECLARE
     v_user_role TEXT;
@@ -278,10 +220,9 @@ DECLARE
     v_urgency INTEGER;
     v_total_credibility NUMERIC;
     v_new_priority_index NUMERIC;
-    v_user_name TEXT;
 BEGIN
     -- 1. Check user role
-    SELECT role, name INTO v_user_role, v_user_name FROM profiles WHERE id = p_user_id;
+    SELECT role INTO v_user_role FROM profiles WHERE id = p_user_id;
     IF v_user_role != 'STUDENT' THEN
         RETURN json_build_object('error', 'Only students can support issues', 'status', 403);
     END IF;
@@ -298,7 +239,7 @@ BEGIN
         RETURN json_build_object('error', 'Cannot support a closed or escalated issue', 'status', 400);
     END IF;
 
-    -- 3. Check for existing support (Atomic check via Unique constraint PRIMARY KEY)
+    -- 3. Check for existing support
     IF EXISTS (SELECT 1 FROM supports WHERE user_id = p_user_id AND issue_id = p_issue_id) THEN
         RETURN json_build_object('error', 'Already supported this issue', 'status', 409);
     END IF;
@@ -310,7 +251,6 @@ BEGIN
     UPDATE issues SET support_count = support_count + 1 WHERE id = p_issue_id;
 
     -- 6. Recalculate priority_index for THIS issue
-    -- Formula: SUM(credibility) * urgency / (1 + age_in_days)
     SELECT SUM(p.credibility) INTO v_total_credibility
     FROM supports s
     JOIN profiles p ON s.user_id = p.id
@@ -321,7 +261,7 @@ BEGIN
     WHERE id = p_issue_id
     RETURNING priority_index INTO v_new_priority_index;
 
-    -- 7. Log timeline event (Anonymous)
+    -- 7. Log timeline event
     INSERT INTO timeline_events (issue_id, type, user_id, user_name, description)
     VALUES (p_issue_id, 'SUPPORT', p_user_id, 'Anonymous Student', 'Supported this issue');
 

@@ -1,96 +1,51 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { HashRouter, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
-import { User, UserRole, Issue, IssueStatus, Urgency, Department, Support, Notification } from './types';
-import { MOCK_USERS, MOCK_ISSUES, DEPARTMENTS } from './constants';
-import { calculatePriorityScore } from './utils/priority';
-import { authAPI, usersAPI, issuesAPI, departmentsAPI, notificationsAPI, setAuthToken } from './services/api';
+import React, { useEffect, useMemo } from 'react';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Issue } from './types';
+import { issuesAPI } from './services/api';
+import { useStore } from './store/useStore';
+import { Toaster, toast } from 'sonner';
+
 import Navbar from './components/Navbar';
 import Dashboard from './components/Dashboard';
 import IssueForm from './components/IssueForm';
 import IssueList from './components/IssueList';
 import IssueDetail from './components/IssueDetail';
 import MyIssues from './components/MyIssues';
-
 import Profile from './components/Profile';
-import Archive from './components/Archive';
 import Login from './components/Login';
 
 const App: React.FC = () => {
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [supports, setSupports] = useState<Support[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    currentUser,
+    allUsers,
+    issues,
+    departments,
+    supports,
+    notifications,
+    loading,
+    loadInitialData,
+    login,
+    logout,
+    fetchIssues,
+    supportIssue,
+    markNotificationRead,
+    addIssue: addIssueToStore,
+    updateIssue: updateIssueInStore
+  } = useStore();
 
   // Load data from backend
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const token = localStorage.getItem('nexus_token');
-        if (!token) {
-          setLoading(false);
-          return;
-        }
+    loadInitialData();
+  }, [loadInitialData]);
 
-        // Load user data
-        const [userData, usersData, issuesData, deptsData, supportsData, notifsData] = await Promise.all([
-          usersAPI.getMe(),
-          usersAPI.getAll(),
-          issuesAPI.getAll(),
-          departmentsAPI.getAll(),
-          departmentsAPI.getSupports(),
-          notificationsAPI.getAll()
-        ]);
-
-        setCurrentUser(userData);
-        setAllUsers(usersData);
-        setIssues(issuesData);
-        setDepartments(deptsData);
-        setSupports(supportsData);
-        setNotifications(notifsData.data || []);
-      } catch (error) {
-        console.error('Failed to load data:', error);
-        // If error, clear token and show login
-        setAuthToken(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  const handleLogin = async (user: User) => {
-    setCurrentUser(user);
-    // Reload all data after login
-    try {
-      const [usersData, issuesData, deptsData, supportsData, notifsData] = await Promise.all([
-        usersAPI.getAll(),
-        issuesAPI.getAll(),
-        departmentsAPI.getAll(),
-        departmentsAPI.getSupports(),
-        notificationsAPI.getAll()
-      ]);
-
-      setAllUsers(usersData);
-      setIssues(issuesData);
-      setDepartments(deptsData);
-      setSupports(supportsData);
-      setNotifications(notifsData.data || []);
-    } catch (error) {
-      console.error('Failed to load data after login:', error);
-    }
+  const handleLogin = async (user: any) => {
+    await login(user);
+    toast.success(`Welcome back, ${user.name}!`);
   };
 
   const handleLogout = () => {
-    setAuthToken(null);
-    setCurrentUser(null);
-    setAllUsers([]);
-    setIssues([]);
-    setSupports([]);
-    setNotifications([]);
+    logout();
+    toast.info('Logged out successfully');
   };
 
   const addIssue = async (newIssue: Partial<Issue>) => {
@@ -103,26 +58,24 @@ const App: React.FC = () => {
       formData.append('urgency', String(newIssue.urgency!));
       formData.append('deadline', newIssue.deadline!);
 
-      const result = await issuesAPI.create(formData);
-
-      // Reload issues
-      const updatedIssues = await issuesAPI.getAll();
-      setIssues(updatedIssues);
+      await addIssueToStore(formData);
+      toast.success('Complaint submitted successfully!');
     } catch (error) {
-      console.error('Failed to create issue:', error);
-      alert('Failed to create issue');
+      toast.error('Failed to create issue');
     }
   };
 
   const updateIssue = async (updatedIssue: Issue) => {
     try {
-      await issuesAPI.update(updatedIssue.id, {
+      const updates = {
         status: updatedIssue.status,
         priorityScore: updatedIssue.priorityScore,
         supportCount: updatedIssue.supportCount,
         contestCount: updatedIssue.contestCount,
         resolutionEvidenceUrl: updatedIssue.resolutionEvidenceUrl
-      });
+      };
+
+      await updateIssueInStore(updatedIssue.id, updates);
 
       // Update timeline if needed
       if (updatedIssue.timeline && updatedIssue.timeline.length > 0) {
@@ -134,68 +87,25 @@ const App: React.FC = () => {
           lastEvent.metadata
         );
       }
-
-      // Reload issues
-      const updatedList = await issuesAPI.getAll();
-      setIssues(updatedList);
-
+      toast.success('Issue updated');
     } catch (error) {
-      console.error('Failed to update issue:', error);
-      alert('Failed to update issue');
+      toast.error('Failed to update issue');
     }
   };
 
   const recordSupport = async (userId: string, issueId: string) => {
     try {
-      await issuesAPI.support(issueId);
-
-      // Reload issues and supports
-      const [updatedIssues, updatedSupports] = await Promise.all([
-        issuesAPI.getAll(),
-        departmentsAPI.getSupports()
-      ]);
-
-      setIssues(updatedIssues);
-      setSupports(updatedSupports);
-    } catch (error) {
-      console.error('Failed to record support:', error);
-      alert(error.message || 'Failed to record support');
-    }
-  };
-
-  const updateProfile = async (userId: string, updates: Partial<User>) => {
-    try {
-      await usersAPI.update(userId, updates);
-
-      // Reload users and current user
-      const [updatedUsers, updatedCurrentUser] = await Promise.all([
-        usersAPI.getAll(),
-        usersAPI.getMe()
-      ]);
-
-      setAllUsers(updatedUsers);
-      setCurrentUser(updatedCurrentUser);
-    } catch (error) {
-      console.error('Failed to update profile:', error);
-      alert('Failed to update profile');
-    }
-  };
-
-  const markNotificationRead = async (id: string) => {
-    try {
-      await notificationsAPI.markRead(id);
-      // Optimistic update
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    } catch (error) {
-      console.error('Failed to mark notification read:', error);
+      await supportIssue(issueId);
+      toast.success('Support recorded!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to record support');
     }
   };
 
   const sortedIssues = useMemo(() => {
     return [...issues].sort((a, b) => {
-      if (a.priorityScore !== b.priorityScore) {
-        return b.priorityScore - a.priorityScore;
-      }
+      if (a.supportCount !== b.supportCount) return b.supportCount - a.supportCount;
+      if (a.priorityScore !== b.priorityScore) return b.priorityScore - a.priorityScore;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [issues]);
@@ -213,95 +123,145 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className="min-h-screen bg-slate-50 transition-colors duration-500">
+      <Toaster position="top-right" richColors />
+      <div className="min-h-screen relative transition-colors duration-500 bg-slate-50">
         {currentUser && (
-          <Navbar
-            user={currentUser}
-            onLogout={handleLogout}
-            issues={issues}
-            notifications={notifications}
-            onMarkNotificationRead={markNotificationRead}
-          />
+          <div
+            className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat bg-fixed"
+            style={{ backgroundImage: "url('/abstract-waves.jpg')" }}
+          >
+            <div className="absolute inset-0 bg-black/45" />
+          </div>
         )}
 
-        <main className={currentUser ? 'container mx-auto px-6 pt-24 pb-12' : ''}>
-          <Routes>
-            {!currentUser ? (
-              <Route path="*" element={<Login onLogin={handleLogin} />} />
-            ) : (
-              <>
-                <Route path="/" element={
-                  <Dashboard
-                    issues={sortedIssues}
-                    user={currentUser}
-                    departments={departments}
-                    onApproveIssue={async (id: string) => {
-                      await issuesAPI.approve(id);
-                      setIssues(await issuesAPI.getAll());
-                    }}
-                    onRejectIssue={async (id: string, reason?: string) => {
-                      await issuesAPI.reject(id, reason);
-                      setIssues(await issuesAPI.getAll());
-                    }}
-                  />
-                } />
-                <Route path="/report" element={<IssueForm user={currentUser} departments={departments} onAddIssue={addIssue} />} />
-                <Route path="/my-issues" element={<MyIssues issues={sortedIssues} departments={departments} user={currentUser} />} />
-                <Route path="/issues" element={<IssueList issues={sortedIssues} departments={departments} />} />
-                <Route path="/profile" element={<Profile user={currentUser} onUpdateProfile={updateProfile} />} />
-                <Route path="/issues/:id" element={
-                  <IssueDetail
-                    issues={issues}
-                    users={allUsers}
-                    user={currentUser}
-                    supports={supports}
-                    onUpdateIssue={updateIssue}
-                    onRecordSupport={recordSupport}
-                    onUpdateUser={updateProfile}
-                    onApproveIssue={async (id: string) => {
-                      await issuesAPI.approve(id);
-                      setIssues(await issuesAPI.getAll());
-                    }}
-                    onRejectIssue={async (id: string, reason?: string) => {
-                      await issuesAPI.reject(id, reason);
-                      setIssues(await issuesAPI.getAll());
-                    }}
-                    onResolveIssue={async (id: string, summary: string, evidenceUrl?: string) => {
-                      await issuesAPI.resolve(id, summary, evidenceUrl);
-                      setIssues(await issuesAPI.getAll());
-                    }}
-                    onContestIssue={async (id: string, reason: string) => {
-                      await issuesAPI.contest(id, reason);
-                      setIssues(await issuesAPI.getAll());
-                    }}
-                    onContestDecision={async (id: string, decision: 'ACCEPT' | 'REJECT', explanation?: string) => {
-                      await issuesAPI.contestDecision(id, decision, explanation);
-                      setIssues(await issuesAPI.getAll());
-                    }}
-                    onReResolve={async (id: string, summary: string, evidenceUrl?: string) => {
-                      await issuesAPI.reResolve(id, summary, evidenceUrl);
-                      setIssues(await issuesAPI.getAll());
-                    }}
-                    onRevalidationVote={async (id: string, voteType: 'confirm' | 'reject') => {
-                      await issuesAPI.revalidationVote(id, voteType);
-                      setIssues(await issuesAPI.getAll());
-                    }}
-                  />
-                } />
+        <div className="relative z-10 flex flex-col min-h-screen">
+          {currentUser && (
+            <Navbar
+              user={currentUser}
+              onLogout={handleLogout}
+              issues={issues}
+              notifications={notifications}
+              onMarkNotificationRead={markNotificationRead}
+            />
+          )}
 
-                <Route path="/archive" element={<Archive issues={issues} departments={departments} />} />
-                <Route path="*" element={<Navigate to="/" />} />
-              </>
-            )}
-          </Routes>
-        </main>
+          <main className={currentUser ? 'container mx-auto px-6 pt-24 pb-12 flex-grow page-enter' : 'flex-grow min-h-screen'}>
+            <Routes>
+              {!currentUser ? (
+                <Route path="*" element={<Login onLogin={handleLogin} />} />
+              ) : (
+                <>
+                  <Route path="/" element={
+                    <Dashboard
+                      issues={sortedIssues}
+                      user={currentUser}
+                      departments={departments}
+                      supports={supports}
+                      onSupportIssue={recordSupport}
+                      onApproveIssue={async (id: string) => {
+                        try {
+                          await issuesAPI.approve(id);
+                          await fetchIssues();
+                          toast.success('Issue approved');
+                        } catch (e) {
+                          toast.error('Approval failed');
+                        }
+                      }}
+                      onRejectIssue={async (id: string, reason?: string) => {
+                        try {
+                          await issuesAPI.reject(id, reason);
+                          await fetchIssues();
+                          toast.success('Issue rejected');
+                        } catch (e) {
+                          toast.error('Rejection failed');
+                        }
+                      }}
+                    />
+                  } />
+                  <Route path="/report" element={<IssueForm user={currentUser} departments={departments} onAddIssue={addIssue} />} />
+                  <Route path="/my-issues" element={<MyIssues issues={sortedIssues} departments={departments} user={currentUser} />} />
+                  <Route path="/issues" element={<IssueList issues={sortedIssues} departments={departments} />} />
+                  <Route path="/profile" element={<Profile user={currentUser} onUpdateProfile={async (uid, updates) => {
+                    try {
+                      await useStore.getState().loadInitialData(); // Refresh all
+                      toast.success('Profile updated');
+                    } catch (e) {
+                      toast.error('Update failed');
+                    }
+                  }} />} />
+                  <Route path="/issues/:id" element={
+                    <IssueDetail
+                      issues={issues}
+                      users={allUsers}
+                      user={currentUser}
+                      supports={supports}
+                      onUpdateIssue={updateIssue}
+                      onRecordSupport={recordSupport}
+                      onUpdateUser={async (uid, updates) => {
+                        await useStore.getState().loadInitialData();
+                        toast.success('User updated');
+                      }}
+                      onApproveIssue={async (id: string) => {
+                        await issuesAPI.approve(id);
+                        await fetchIssues();
+                        toast.success('Approved');
+                      }}
+                      onRejectIssue={async (id: string, reason?: string) => {
+                        await issuesAPI.reject(id, reason);
+                        await fetchIssues();
+                        toast.success('Rejected');
+                      }}
+                      onResolveIssue={async (id: string, summary: string, evidenceUrl?: string) => {
+                        await issuesAPI.resolve(id, summary, evidenceUrl);
+                        await fetchIssues();
+                        toast.success('Issue marked as resolved');
+                      }}
+                      onContestIssue={async (id: string, reason: string) => {
+                        await issuesAPI.contest(id, reason);
+                        await fetchIssues();
+                        toast.success('Contest submitted');
+                      }}
+                      onContestDecision={async (id: string, decision: 'ACCEPT' | 'REJECT', explanation?: string) => {
+                        await issuesAPI.contestDecision(id, decision, explanation);
+                        await fetchIssues();
+                        toast.success(`Contest ${decision.toLowerCase()}ed`);
+                      }}
+                      onReResolve={async (id: string, summary: string, evidenceUrl?: string) => {
+                        await issuesAPI.reResolve(id, summary, evidenceUrl);
+                        await fetchIssues();
+                        toast.success('Issue re-resolved');
+                      }}
+                      onRevalidationVote={async (id: string, voteType: 'confirm' | 'reject') => {
+                        await issuesAPI.revalidationVote(id, voteType);
+                        await fetchIssues();
+                        toast.success('Vote submitted');
+                      }}
+                      onAddComment={async (id: string, text: string) => {
+                        await issuesAPI.addComment(id, text);
+                        await fetchIssues();
+                        toast.success('Comment added');
+                      }}
+                      onAddProposal={async (id: string, text: string) => {
+                        await issuesAPI.addProposal(id, text);
+                        await fetchIssues();
+                        toast.success('Proposal added');
+                      }}
+                    />
+                  } />
+                  <Route path="*" element={<Navigate to="/" />} />
+                </>
+              )}
+            </Routes>
+          </main>
 
-        <footer className="bg-white border-t py-8 text-center text-slate-400 text-[10px] uppercase tracking-widest font-black">
-          &copy; {new Date().getFullYear()} Nexus Platform • Student Issue Resolution & Accountability
-        </footer>
+          <footer className="bg-white/5 backdrop-blur-md border-t border-white/10 py-8 text-center text-slate-400 text-[10px] uppercase tracking-widest font-black relative z-10">
+            &copy; {new Date().getFullYear()} Nexus Platform • Student Issue Resolution & Accountability
+          </footer>
+        </div>
       </div>
     </HashRouter>
   );
 };
 
 export default App;
+

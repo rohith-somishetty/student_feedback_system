@@ -16,10 +16,12 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow any localhost origin in development
-        if (!origin || origin.startsWith('http://localhost')) {
+        // Allow any localhost origin in development or if in allowed list
+        if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -59,8 +61,14 @@ app.use((err, req, res, next) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 API: http://localhost:${PORT}/api`);
-    console.log(`🗄️  Database: Supabase`);
-});
+// Only start the server if this file is run directly
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+        console.log(`📊 API: http://localhost:${PORT}/api`);
+        console.log(`🗄️  Database: Supabase`);
+    });
+}
+
+// Export the app for Vercel
+module.exports = app;

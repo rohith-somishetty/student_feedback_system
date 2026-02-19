@@ -7,6 +7,11 @@ export const DEPARTMENTS = [
   { id: 'dept-4', name: 'Health Services', performanceScore: 81 },
   { id: 'dept-5', name: 'Disciplinary Committee', performanceScore: 95 },
   { id: 'dept-6', name: 'General Administration', performanceScore: 85 },
+  { id: 'dept-7', name: 'Placement & Corporate Relations', performanceScore: 90 },
+  { id: 'dept-8', name: 'IT & Network Operations', performanceScore: 82 },
+  { id: 'dept-9', name: 'Physical Education & Sports', performanceScore: 87 },
+  { id: 'dept-10', name: 'Finance & Accounts', performanceScore: 84 },
+  { id: 'dept-11', name: 'Library Management', performanceScore: 89 },
 ];
 
 export const CREDIBILITY_THRESHOLDS = {
@@ -27,6 +32,11 @@ export const CATEGORY_CONFIG: Record<IssueCategory, { defaultDeptId: string, bas
   [IssueCategory.INFRASTRUCTURE]: { defaultDeptId: 'dept-3', baseDeadlineDays: 5 },
   [IssueCategory.HARASSMENT]: { defaultDeptId: 'dept-5', baseDeadlineDays: 1 }, // Critical
   [IssueCategory.ADMINISTRATION]: { defaultDeptId: 'dept-6', baseDeadlineDays: 10 },
+  [IssueCategory.CAREER_PLACEMENTS]: { defaultDeptId: 'dept-7', baseDeadlineDays: 5 },
+  [IssueCategory.DIGITAL_SERVICES]: { defaultDeptId: 'dept-8', baseDeadlineDays: 2 },
+  [IssueCategory.SPORTS_WELLNESS]: { defaultDeptId: 'dept-9', baseDeadlineDays: 4 },
+  [IssueCategory.FINANCIAL_SERVICES]: { defaultDeptId: 'dept-10', baseDeadlineDays: 7 },
+  [IssueCategory.TRANSPORTATION]: { defaultDeptId: 'dept-3', baseDeadlineDays: 3 },
   [IssueCategory.OTHER]: { defaultDeptId: 'dept-2', baseDeadlineDays: 7 },
 };
 

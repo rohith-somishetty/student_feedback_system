@@ -31,10 +31,23 @@ const test = async () => {
     depts.forEach(d => console.log(`  ${d.name}: score ${d.performanceScore}`));
 
     // 5. Get issues
-    console.log('\n--- Issues ---');
-    const issues = await fetch(`${BASE}/api/issues`, { headers }).then(r => r.json());
-    console.log(`Total issues: ${issues.length}`);
+    console.log('\n--- Issues (Paginated) ---');
+    const issuesData = await fetch(`${BASE}/api/issues?page=1&limit=5`, { headers }).then(r => r.json());
+    const issues = issuesData.issues || [];
+    console.log(`Total issues: ${issuesData.totalCount || 0}`);
     issues.forEach(i => console.log(`  [${i.status}] ${i.title} (priority: ${i.priorityScore})`));
+
+    if (issues.length > 0) {
+        // 5a. Add a comment
+        const issueId = issues[0].id;
+        console.log(`\n--- Adding Comment to Issue ${issueId} ---`);
+        const comment = await fetch(`${BASE}/api/issues/${issueId}/comments`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ text: 'Test comment from verification script' })
+        }).then(r => r.json());
+        console.log(comment);
+    }
 
     // 6. Login admin
     console.log('\n--- Login (Admin) ---');
