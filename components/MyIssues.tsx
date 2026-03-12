@@ -12,14 +12,14 @@ interface MyIssuesProps {
 
 const statusBadge = (status: string) => {
     switch (status) {
-        case IssueStatus.PENDING_APPROVAL: return 'bg-orange-100 text-orange-700';
-        case IssueStatus.OPEN: return 'bg-amber-100 text-amber-700';
-        case IssueStatus.IN_REVIEW: return 'bg-blue-100 text-blue-700';
-        case IssueStatus.RESOLVED: return 'bg-emerald-100 text-emerald-700';
-        case IssueStatus.CONTESTED: return 'bg-red-100 text-red-700';
-        case IssueStatus.REOPENED: return 'bg-purple-100 text-purple-700';
-        case IssueStatus.REJECTED: return 'bg-red-200 text-red-800';
-        default: return 'bg-slate-100 text-slate-700';
+        case IssueStatus.PENDING_APPROVAL: return 'bg-amber-50/80 text-amber-600 border-amber-100';
+        case IssueStatus.OPEN: return 'bg-brand-accent-light text-brand-primary border-brand-primary/20';
+        case IssueStatus.IN_REVIEW: return 'bg-blue-50/80 text-blue-600 border-blue-100';
+        case IssueStatus.RESOLVED: return 'bg-emerald-50/80 text-emerald-700 border-emerald-100';
+        case IssueStatus.CONTESTED: return 'bg-rose-50/80 text-rose-600 border-rose-100';
+        case IssueStatus.REOPENED: return 'bg-purple-50/80 text-purple-700 border-purple-100';
+        case IssueStatus.REJECTED: return 'bg-slate-100/80 text-slate-500 border-slate-200';
+        default: return 'bg-slate-50/80 text-slate-500 border-slate-100';
     }
 };
 
@@ -36,14 +36,12 @@ const MyIssues: React.FC<MyIssuesProps> = ({ issues, departments, user }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 900);
+        const timer = setTimeout(() => setIsLoading(false), 800);
         return () => clearTimeout(timer);
     }, []);
 
-    // Filter issues for the current user
     const myIssues = issues.filter(i => i.creatorId === user.id);
 
-    // Categorize issues
     const pendingIssues = myIssues.filter(i => i.status === IssueStatus.PENDING_APPROVAL);
     const activeIssues = myIssues.filter(i =>
         [IssueStatus.OPEN, IssueStatus.IN_REVIEW, IssueStatus.CONTESTED, IssueStatus.PENDING_REVALIDATION, IssueStatus.REOPENED].includes(i.status)
@@ -55,36 +53,51 @@ const MyIssues: React.FC<MyIssuesProps> = ({ issues, departments, user }) => {
     const currentList = activeTab === 'PENDING' ? pendingIssues : activeTab === 'ACTIVE' ? activeIssues : resolvedIssues;
 
     return (
-        <div className="min-h-screen pt-24 pb-16 px-4 sm:px-8 max-w-5xl mx-auto font-outfit page-enter">
-            <div className="mb-10">
-                <h1 className="text-4xl md:text-5xl font-display font-bold text-slate-900 tracking-tight mb-3">
-                    My <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-violet-500">History</span>
-                </h1>
-                <p className="text-slate-500 font-medium text-lg">
-                    Track the status of your reported issues and resolutions.
-                </p>
+        <div className="min-h-screen pt-24 pb-16 px-4 sm:px-8 max-w-7xl mx-auto font-outfit page-enter">
+            {/* Header Section - Matched to Feed */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+                <div className="space-y-3">
+                    <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-[#E5E7EB] text-[10px] font-bold uppercase tracking-[0.2em]">
+                        <span className="w-2 h-2 rounded-full bg-[#14B8A6] shadow-[0_0_8px_rgba(20,184,166,0.4)]"></span>
+                        <span>Personal Activity Log</span>
+                    </div>
+                    <h1 className="text-5xl md:text-6xl font-display font-bold text-[#E5E7EB] tracking-tight leading-none">
+                        Your <span className="text-[#0B5F5A]">Activity</span>
+                    </h1>
+                    <p className="text-[#9CA3AF] font-medium tracking-wide max-w-xl text-lg">
+                        Real-time tracking of your reports, contributions, and community impact milestones.
+                    </p>
+                </div>
+
+                <Link
+                    to="/report"
+                    className="flex btn-elevate bg-gradient-to-r from-[#0B5F5A] to-[#14B8A6] hover:from-[#0D9488] hover:to-[#0B5F5A] text-white px-8 py-3.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_10px_30px_-5px_rgba(11,95,90,0.5)] active:scale-95 items-center space-x-2 border border-white/10"
+                >
+                    <span>+ New Report</span>
+                </Link>
             </div>
 
-            {/* Tabs */}
-            <div className="flex space-x-2 mb-6 bg-slate-100/50 p-1.5 rounded-xl w-fit">
+            {/* Navigation Tabs - Matched to Feed */}
+            <div className="flex items-center space-x-2 mb-8 bg-white/5 p-1 rounded-xl border border-white/5 backdrop-blur-sm self-start w-fit">
                 {[
-                    { id: 'PENDING', label: 'Pending Approval', count: pendingIssues.length },
+                    { id: 'PENDING', label: 'Triage Queue', count: pendingIssues.length },
                     { id: 'ACTIVE', label: 'In Progress', count: activeIssues.length },
-                    { id: 'RESOLVED', label: 'Resolved / Closed', count: resolvedIssues.length }
+                    { id: 'RESOLVED', label: 'Archived', count: resolvedIssues.length }
                 ].map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
                         className={`
-              px-6 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all
-              ${activeTab === tab.id
-                                ? 'bg-white text-brand-primary shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}
-            `}
+                            px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2
+                            ${activeTab === tab.id
+                                ? 'bg-[#14B8A6] text-white shadow-lg'
+                                : 'text-slate-400 hover:text-white'}
+                        `}
                     >
                         {tab.label}
                         {tab.count > 0 && (
-                            <span className={`ml-2 px-1.5 py-0.5 rounded-md text-[10px] ${activeTab === tab.id ? 'bg-brand-primary/10 text-brand-primary' : 'bg-slate-200 text-slate-600'}`}>
+                            <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black ${activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-white/10 text-slate-400'
+                                }`}>
                                 {tab.count}
                             </span>
                         )}
@@ -92,71 +105,68 @@ const MyIssues: React.FC<MyIssuesProps> = ({ issues, departments, user }) => {
                 ))}
             </div>
 
-            {/* List */}
-            <div className="space-y-4">
+            {/* Content List - Matched to Feed Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                 {isLoading ? (
-                    [1, 2, 3].map(i => <SkeletonIssueCard key={i} />)
+                    [1, 2, 3, 4].map(i => <SkeletonIssueCard key={i} />)
                 ) : currentList.length === 0 ? (
-                    <div className="py-20 text-center bg-white/50 backdrop-blur-sm border-2 border-dashed border-slate-200 rounded-2xl p-10 group transition-all duration-500 hover:border-brand-primary/30">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-50 text-slate-300 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500">
-                            {activeTab === 'PENDING' ? (
-                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            ) : activeTab === 'ACTIVE' ? (
-                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
-                            ) : (
-                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            )}
+                    <div className="col-span-full py-20 text-center bg-white/40 backdrop-blur-md border-2 border-dashed border-slate-200 rounded-2xl p-10 group hover:border-[#0B5F5A]/30 transition-colors">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-50 text-slate-400 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </div>
-                        <h3 className="text-xl font-display font-bold text-slate-800 mb-2">
-                            {activeTab === 'PENDING' ? "No reports awaiting review" : activeTab === 'ACTIVE' ? "Your active list is empty" : "No resolved cases yet"}
+                        <h3 className="text-xl font-display font-bold text-slate-800 mb-2 tracking-tight">
+                            {activeTab === 'PENDING' ? "Triage Queue is Clear" : activeTab === 'ACTIVE' ? "Ready for Action?" : "Archive is Current"}
                         </h3>
                         <p className="text-sm text-slate-500 max-w-sm mx-auto mb-8 font-medium leading-relaxed">
                             {activeTab === 'PENDING'
-                                ? "When you submit a new report, it will appear here while our team verifies the details."
+                                ? "No reports are currently awaiting administrative review. Your next submission will appear here for tracking."
                                 : activeTab === 'ACTIVE'
-                                    ? "You're currently all caught up. If you spot something that needs attention, don't hesitate to speak up."
-                                    : "Reports specifically created by you that have been fully resolved will be stored here for your reference."
+                                    ? "Your active pipeline is empty. Is there something on campus that needs attention? Your reports drive change."
+                                    : "You have no archived resolutions. As your reports reach completion, they will be safely stored here."
                             }
                         </p>
                         <Link to="/report" className="inline-flex items-center px-8 py-3 bg-[#0F172A] text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#0B5F5A] transition-all hover:shadow-xl active:scale-95">
-                            + File New Report
+                            Submit a Report
                         </Link>
                     </div>
                 ) : (
-                    currentList.map(issue => (
+                    currentList.map((issue) => (
                         <Link
                             key={issue.id}
                             to={`/issues/${issue.id}`}
-                            className="block group"
+                            className="group block"
                         >
-                            <div className="bg-white border border-slate-100 rounded-2xl p-6 interaction-lift">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex-1 pr-8">
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${statusBadge(issue.status)}`}>
-                                                {statusLabel(issue.status)}
+                            <div className="h-full bg-white border border-slate-100 p-6 rounded-2xl relative overflow-hidden interaction-lift">
+                                {/* Decorative Gradient Blob - From Feed */}
+                                <div className="absolute -right-10 -top-10 w-40 h-40 bg-gradient-to-br from-brand-primary/5 to-teal-500/5 rounded-full blur-3xl group-hover:from-brand-primary/10 group-hover:to-teal-500/10 transition-colors"></div>
+
+                                <div className="relative z-10 flex flex-col h-full">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] border backdrop-blur-md ${statusBadge(issue.status)}`}>
+                                            {statusLabel(issue.status)}
+                                        </span>
+                                        {issue.contestedFlag && (
+                                            <span className="px-2 py-0.5 bg-rose-100 text-rose-600 border border-rose-200 rounded text-[9px] font-black uppercase tracking-wider">
+                                                Contested
                                             </span>
-                                            <span className="text-xs font-bold text-slate-400">
-                                                {new Date(issue.createdAt).toLocaleDateString()}
-                                            </span>
-                                            {issue.contestedFlag && (
-                                                <span className="px-2 py-0.5 bg-rose-100 text-rose-600 rounded text-[9px] font-black uppercase tracking-wider">
-                                                    Contested
-                                                </span>
-                                            )}
-                                        </div>
-                                        <h3 className="text-lg font-bold text-slate-800 group-hover:text-brand-primary transition-colors mb-1">
-                                            {issue.title}
-                                        </h3>
-                                        <p className="text-sm text-slate-500 line-clamp-1">
-                                            {issue.description}
-                                        </p>
+                                        )}
                                     </div>
 
-                                    <div className="hidden sm:block text-right">
-                                        <span className="text-xs font-bold text-slate-500 flex items-center justify-end gap-1.5 bg-slate-50 px-2 py-1 rounded-lg">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                    <h3 className="text-xl font-display font-bold text-[#0F172A] mb-3 leading-tight group-hover:text-[#0B5F5A] transition-colors line-clamp-2">
+                                        {issue.title}
+                                    </h3>
+
+                                    <p className="text-sm text-[#64748B] font-medium line-clamp-2 mb-6 flex-grow leading-relaxed">
+                                        {issue.description}
+                                    </p>
+
+                                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-[#64748B] flex items-center gap-2 bg-slate-50 px-2 py-1 rounded-lg">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-[#0B5F5A] shadow-[0_0_8px_rgba(11,95,90,0.5)]"></span>
                                             {departments.find(d => d.id === issue.departmentId)?.name}
+                                        </span>
+                                        <span className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-widest opacity-60">
+                                            {new Date(issue.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                         </span>
                                     </div>
                                 </div>

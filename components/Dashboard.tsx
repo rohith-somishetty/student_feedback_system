@@ -167,7 +167,7 @@ const Dashboard: React.FC<DashboardProps> = ({ issues, user, departments, suppor
                 className="group relative inline-flex items-center justify-center px-10 py-4.5 font-black text-white bg-[#0B5F5A] font-display rounded-2xl hover:bg-[#0D9488] transition-all duration-300 shadow-xl shadow-[#0B5F5A]/20 active:scale-95 border border-white/5 overflow-hidden"
               >
                 <span className="relative z-10 flex items-center gap-2 text-sm uppercase tracking-widest">
-                  <span className="text-xl leading-none">+</span> New Case
+                  <span className="text-xl leading-none">+</span> New Report
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               </Link>
